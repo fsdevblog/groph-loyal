@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+
 	"github.com/caarlos0/env/v11"
 )
 

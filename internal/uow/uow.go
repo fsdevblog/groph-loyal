@@ -3,6 +3,7 @@ package uow
 import (
 	"context"
 	"errors"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -24,7 +25,7 @@ func NewUnitOfWork(conn *pgxpool.Pool) *UnitOfWork {
 }
 
 // Register регистрирует репозиторий у себя в мапе. Если репозиторий уже зарегистрирован, возвращает
-// ошибку ErrRepositoryAlreadyRegistered
+// ошибку ErrRepositoryAlreadyRegistered.
 func (u *UnitOfWork) Register(name RepositoryName, factory RepositoryFactory) error {
 	if _, ok := u.repositories[name]; ok {
 		return ErrRepositoryAlreadyRegistered
@@ -37,7 +38,7 @@ func (u *UnitOfWork) Register(name RepositoryName, factory RepositoryFactory) er
 func (u *UnitOfWork) Do(ctx context.Context, fn func(context.Context, TX) error) (err error) {
 	tx, txErr := u.conn.BeginTx(ctx, pgx.TxOptions{})
 	if txErr != nil {
-		return txErr
+		return txErr //nolint:wrapcheck
 	}
 	defer func() {
 		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
@@ -71,7 +72,7 @@ func GetRepositoryAs[T any](u UOW, name RepositoryName) (T, error) {
 	var res T
 	repo, err := u.GetRepository(name)
 	if err != nil {
-		return res, err
+		return res, err //nolint:wrapcheck
 	}
 	r, ok := repo.(T)
 

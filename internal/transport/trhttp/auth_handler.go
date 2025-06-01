@@ -2,10 +2,11 @@ package trhttp
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type AuthHandler struct {

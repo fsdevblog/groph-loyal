@@ -4,44 +4,45 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/trhttp"
 	"github.com/fsdevblog/groph-loyal/internal/uow"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 
 	// driver for migration applying postgres.
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" //nolint:revive
 	// driver to get migrations from files (*.sql in our case).
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"os"
 	"os/signal"
 	"syscall"
+
+	_ "github.com/golang-migrate/migrate/v4/source/file" //nolint:revive
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
 	Config *config.Config
+	Logger *logrus.Logger
 }
 
-func New(conf *config.Config) *App {
+func New(conf *config.Config, l *logrus.Logger) *App {
 	return &App{
 		Config: conf,
+		Logger: l,
 	}
 }
 
 func (a *App) Run() error {
-	l := logger.New(os.Stdout)
 	notifyCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	conn, connErr := initPostgres(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, l)
+	conn, connErr := initPostgres(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
 	if connErr != nil {
 		return connErr
 	}
@@ -57,7 +58,7 @@ func (a *App) Run() error {
 	}
 
 	router := trhttp.New(trhttp.RouterArgs{
-		Logger:      l,
+		Logger:      a.Logger,
 		UserService: userService,
 	})
 
@@ -71,7 +72,7 @@ func (a *App) Run() error {
 
 	select {
 	case <-notifyCtx.Done():
-		return notifyCtx.Err()
+		return notifyCtx.Err() //nolint:wrapcheck
 	case err := <-errChan:
 		return err
 	}
