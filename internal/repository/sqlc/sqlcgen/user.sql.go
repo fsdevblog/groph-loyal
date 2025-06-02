@@ -33,3 +33,20 @@ func (q *Queries) Users_Create(ctx context.Context, arg Users_CreateParams) (Use
 	)
 	return i, err
 }
+
+const users_FindByUsername = `-- name: Users_FindByUsername :one
+SELECT id, created_at, updated_at, username, password FROM users WHERE username = $1
+`
+
+func (q *Queries) Users_FindByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, users_FindByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+		&i.Password,
+	)
+	return i, err
+}

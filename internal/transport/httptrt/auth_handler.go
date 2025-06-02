@@ -67,3 +67,38 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.Header("Authorization", "Bearer "+jwtToken)
 	c.JSON(http.StatusOK, gin.H{"user": response})
 }
+
+type UserLoginParams struct {
+	Username string `json:"login" form:"login"`
+	Password string `json:"password" form:"password"`
+}
+
+// Login POST APIRouteGroup + APILoginRoute. Аутентификация по паре логин/пароль.
+func (h *AuthHandler) Login(c *gin.Context) {
+	var params UserLoginParams
+	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, bindErr).
+			SetType(gin.ErrorTypeBind)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
+	defer cancel()
+
+	user, token, err := h.userService.Login(ctx, service.LoginUserArgs{
+		Username: params.Username,
+		Password: params.Password,
+	})
+
+	if err != nil {
+		if errors.Is(err, domain.ErrRecordNotFound) || errors.Is(err, domain.ErrPasswordMissMatch) {
+			_ = c.Error(err)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
+		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePublic)
+		return
+	}
+	c.Header("Authorization", "Bearer "+token)
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}

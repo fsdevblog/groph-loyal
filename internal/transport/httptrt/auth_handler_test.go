@@ -106,3 +106,64 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 		})
 	}
 }
+
+func (s *AuthHandlerTestSuite) TestLogin() {
+	argsOk := service.LoginUserArgs{Username: "test", Password: "password"}
+	argsWrongUsername := service.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
+	argsWrongPass := service.LoginUserArgs{Username: "test", Password: "<wrong>"}
+
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsOk).
+		Return(&domain.User{}, "token", nil).
+		Times(1)
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsWrongUsername).
+		Return(nil, "", domain.ErrRecordNotFound).
+		Times(1)
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsWrongPass).
+		Return(nil, "", domain.ErrPasswordMissMatch).
+		Times(1)
+
+	cases := []struct {
+		name       string
+		args       *UserLoginParams
+		wantStatus int
+	}{
+		{
+			name:       "ok",
+			args:       &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus: http.StatusOK,
+		}, {
+			name:       "bad request",
+			args:       nil,
+			wantStatus: http.StatusBadRequest,
+		}, {
+			name:       "wrong username",
+			args:       &UserLoginParams{Username: argsWrongUsername.Username, Password: argsWrongUsername.Password},
+			wantStatus: http.StatusUnauthorized,
+		}, {
+			name:       "wrong password",
+			args:       &UserLoginParams{Username: argsWrongPass.Username, Password: argsWrongPass.Password},
+			wantStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, t := range cases {
+		s.Run(t.name, func() {
+			var payload []byte
+			if t.args != nil {
+				payload, _ = json.Marshal(t.args)
+			}
+
+			res, err := testutils.MakeRequest(testutils.RequestArgs{
+				Router: s.router,
+				Method: http.MethodPost,
+				URL:    APIRouteGroup + APILoginRoute,
+				Body:   bytes.NewReader(payload),
+			})
+			s.Require().NoError(err)
+			s.Equal(t.wantStatus, res.StatusCode)
+		})
+	}
+}

@@ -36,6 +36,22 @@ func (m *MockUserServicer) EXPECT() *MockUserServicerMockRecorder {
 	return m.recorder
 }
 
+// Login mocks base method.
+func (m *MockUserServicer) Login(ctx context.Context, args service.LoginUserArgs) (*domain.User, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Login", ctx, args)
+	ret0, _ := ret[0].(*domain.User)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Login indicates an expected call of Login.
+func (mr *MockUserServicerMockRecorder) Login(ctx, args interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockUserServicer)(nil).Login), ctx, args)
+}
+
 // Register mocks base method.
 func (m *MockUserServicer) Register(ctx context.Context, args service.RegisterUserArgs) (*domain.User, string, error) {
 	m.ctrl.T.Helper()

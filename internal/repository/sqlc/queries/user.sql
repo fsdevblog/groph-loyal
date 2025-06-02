@@ -3,3 +3,6 @@ INSERT INTO users
     (username, password)
 VALUES ($1, $2)
 RETURNING *;
+
+-- name: Users_FindByUsername :one
+SELECT * FROM users WHERE username = $1;

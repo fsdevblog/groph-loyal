@@ -12,4 +12,5 @@ import (
 // UserServicer интерфейс исключительно для моков.
 type UserServicer interface {
 	Register(ctx context.Context, args service.RegisterUserArgs) (*domain.User, string, error)
+	Login(ctx context.Context, args service.LoginUserArgs) (*domain.User, string, error)
 }

@@ -11,4 +11,5 @@ const (
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, user User) (*User, error)
+	FindUserByUsername(ctx context.Context, username string) (*User, error)
 }

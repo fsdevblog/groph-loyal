@@ -14,6 +14,7 @@ const (
 const (
 	APIRouteGroup    = "/api"
 	APIRegisterRoute = "/user/register"
+	APILoginRoute    = "/user/login"
 )
 
 type RouterArgs struct {
@@ -33,5 +34,6 @@ func New(args RouterArgs) *gin.Engine {
 	api := r.Group(APIRouteGroup)
 
 	api.POST(APIRegisterRoute, authHandler.Register)
+	api.POST(APILoginRoute, authHandler.Login)
 	return r
 }
