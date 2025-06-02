@@ -30,10 +30,10 @@ func LoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
 			"content-type":     c.Request.Header.Get("Content-Type"),
 			"content-encoding": c.Request.Header.Get("Content-Encoding"),
 		})
-		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
 
-		if errorMessage != "" {
-			l = l.WithField("error", errorMessage)
+		errMsg := c.Errors.String()
+		if errMsg != "" {
+			l = l.WithField("error", errMsg)
 		}
 
 		switch {

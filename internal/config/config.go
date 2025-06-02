@@ -12,6 +12,7 @@ type Config struct {
 	RunAddress    string `env:"RUN_ADDRESS"`
 	DatabaseDSN   string `env:"DATABASE_URI"`
 	MigrationsDir string `env:"MIGRATIONS_DIR"`
+	JWTUserSecret string `env:"JWT_USER_SECRET" envDefault:"supersecretkey"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -51,6 +52,7 @@ func mergeConfig(envConfig, flagsConfig *Config) *Config {
 		RunAddress:    defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
 		DatabaseDSN:   defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
 		MigrationsDir: defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
+		JWTUserSecret: envConfig.JWTUserSecret,
 	}
 }
 

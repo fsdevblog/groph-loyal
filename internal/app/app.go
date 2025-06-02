@@ -11,7 +11,7 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
 	"github.com/fsdevblog/groph-loyal/internal/service"
-	"github.com/fsdevblog/groph-loyal/internal/transport/trhttp"
+	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt"
 	"github.com/fsdevblog/groph-loyal/internal/uow"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/sirupsen/logrus"
@@ -51,13 +51,13 @@ func (a *App) Run() error {
 	if uowErr != nil {
 		return fmt.Errorf("app run: %s", uowErr.Error())
 	}
-	userService, userServiceErr := service.NewUserService(unitOfWork)
+	userService, userServiceErr := service.NewUserService(unitOfWork, []byte(a.Config.JWTUserSecret))
 
 	if userServiceErr != nil {
 		return fmt.Errorf("app run: %s", userServiceErr.Error())
 	}
 
-	router := trhttp.New(trhttp.RouterArgs{
+	router := httptrt.New(httptrt.RouterArgs{
 		Logger:      a.Logger,
 		UserService: userService,
 	})
@@ -165,9 +165,10 @@ func postgresMigrate(dir string, dsn string) error {
 func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	unitOfWork := uow.NewUnitOfWork(conn)
 
-	if regErr := unitOfWork.Register(uow.RepositoryName(domain.UserRepoName), func(dbtx uow.DBTX) uow.Repository {
+	userRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
 		return sqlc.NewUserRepository(dbtx)
-	}); regErr != nil {
+	}
+	if regErr := unitOfWork.Register(uow.RepositoryName(domain.UserRepoName), userRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 
