@@ -3,18 +3,21 @@ package httptrt
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/testutils"
+	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 type AuthHandlerTestSuite struct {
@@ -22,6 +25,7 @@ type AuthHandlerTestSuite struct {
 	mockUserService *mocks.MockUserServicer
 	router          *gin.Engine
 	config          *config.Config
+	jwtSecret       []byte
 }
 
 func (s *AuthHandlerTestSuite) SetupTest() {
@@ -32,10 +36,12 @@ func (s *AuthHandlerTestSuite) SetupTest() {
 	s.config = &config.Config{
 		RunAddress: "localhost:80",
 	}
+	s.jwtSecret = []byte("super secret key")
 
 	s.router = New(RouterArgs{
-		Logger:      logger.New(os.Stdout),
-		UserService: s.mockUserService,
+		Logger:       logger.New(os.Stdout),
+		UserService:  s.mockUserService,
+		JWTSecretKey: s.jwtSecret,
 	})
 }
 
@@ -44,25 +50,34 @@ func TestAuthHandlerSuite(t *testing.T) {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister() {
+	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(jwtErr)
+
 	argsOk := service.RegisterUserArgs{Username: "test", Password: "password"}
 	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
 	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: "password"}
 	argsIncorrectPassword := service.RegisterUserArgs{Username: "test", Password: ""}
 
-	s.mockUserService.EXPECT().Register(gomock.Any(), argsOk).Return(&domain.User{}, "valid_token", nil).Times(1)
-	s.mockUserService.EXPECT().Register(gomock.Any(), argsDup).Return(nil, "", domain.ErrDuplicateKey).Times(1)
+	s.mockUserService.EXPECT().Register(gomock.Any(), argsOk).Return(&domain.User{}, jwtTokenStr, nil)
+	s.mockUserService.EXPECT().Register(gomock.Any(), argsDup).Return(nil, "", domain.ErrDuplicateKey)
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsIncorrectUsername).Times(0)
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsIncorrectPassword).Times(0)
 
 	var cases = []struct {
-		name       string
-		args       *UserRegisterParams
-		wantStatus int
+		name        string
+		args        *UserRegisterParams
+		jwtTokenStr *string
+		wantStatus  int
 	}{
 		{
 			name:       "user created",
 			args:       &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
 			wantStatus: http.StatusOK,
+		}, {
+			name:        "user already logged in",
+			args:        &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus:  http.StatusUnauthorized,
+			jwtTokenStr: &jwtTokenStr,
 		}, {
 			name:       "duplicate username",
 			args:       &UserRegisterParams{Username: argsDup.Username, Password: argsDup.Password},
@@ -95,12 +110,21 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 				payload, _ = json.Marshal(t.args)
 			}
 
-			res, err := testutils.MakeRequest(testutils.RequestArgs{
+			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodPost,
 				URL:    APIRouteGroup + APIRegisterRoute,
 				Body:   bytes.NewReader(payload),
-			})
+			}
+
+			var reqOpts []func(*testutils.RequestOptions)
+			if t.jwtTokenStr != nil {
+				v := fmt.Sprintf("Bearer %s", *t.jwtTokenStr)
+				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", v))
+			}
+
+			res, err := testutils.MakeRequest(args, reqOpts...)
+
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
 		})
@@ -108,32 +132,38 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 }
 
 func (s *AuthHandlerTestSuite) TestLogin() {
+	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(jwtErr)
+
 	argsOk := service.LoginUserArgs{Username: "test", Password: "password"}
 	argsWrongUsername := service.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
 	argsWrongPass := service.LoginUserArgs{Username: "test", Password: "<wrong>"}
 
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsOk).
-		Return(&domain.User{}, "token", nil).
-		Times(1)
+		Return(&domain.User{}, "token", nil)
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsWrongUsername).
-		Return(nil, "", domain.ErrRecordNotFound).
-		Times(1)
+		Return(nil, "", domain.ErrRecordNotFound)
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsWrongPass).
-		Return(nil, "", domain.ErrPasswordMissMatch).
-		Times(1)
+		Return(nil, "", domain.ErrPasswordMissMatch)
 
 	cases := []struct {
-		name       string
-		args       *UserLoginParams
-		wantStatus int
+		name        string
+		args        *UserLoginParams
+		jwtTokenStr *string
+		wantStatus  int
 	}{
 		{
 			name:       "ok",
 			args:       &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
 			wantStatus: http.StatusOK,
+		}, {
+			name:        "already logged in",
+			args:        &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus:  http.StatusUnauthorized,
+			jwtTokenStr: &jwtTokenStr,
 		}, {
 			name:       "bad request",
 			args:       nil,
@@ -156,12 +186,20 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 				payload, _ = json.Marshal(t.args)
 			}
 
-			res, err := testutils.MakeRequest(testutils.RequestArgs{
+			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodPost,
 				URL:    APIRouteGroup + APILoginRoute,
 				Body:   bytes.NewReader(payload),
-			})
+			}
+
+			var reqOpts []func(*testutils.RequestOptions)
+			if t.jwtTokenStr != nil {
+				v := fmt.Sprintf("Bearer %s", *t.jwtTokenStr)
+				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", v))
+			}
+
+			res, err := testutils.MakeRequest(args, reqOpts...)
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
 		})

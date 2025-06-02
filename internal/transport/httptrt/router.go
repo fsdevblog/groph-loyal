@@ -33,7 +33,10 @@ func New(args RouterArgs) *gin.Engine {
 	authHandler := NewAuthHandler(args.UserService)
 	api := r.Group(APIRouteGroup)
 
-	api.POST(APIRegisterRoute, authHandler.Register)
-	api.POST(APILoginRoute, authHandler.Login)
+	api.POST(APIRegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
+	api.POST(APILoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
+
+	api.Use(middlewares.AuthRequiredMiddleware(args.JWTSecretKey))
+
 	return r
 }
