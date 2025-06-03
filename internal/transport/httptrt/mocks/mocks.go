@@ -67,3 +67,41 @@ func (mr *MockUserServicerMockRecorder) Register(ctx, args interface{}) *gomock.
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockUserServicer)(nil).Register), ctx, args)
 }
+
+// MockOrderServicer is a mock of OrderServicer interface.
+type MockOrderServicer struct {
+	ctrl     *gomock.Controller
+	recorder *MockOrderServicerMockRecorder
+}
+
+// MockOrderServicerMockRecorder is the mock recorder for MockOrderServicer.
+type MockOrderServicerMockRecorder struct {
+	mock *MockOrderServicer
+}
+
+// NewMockOrderServicer creates a new mock instance.
+func NewMockOrderServicer(ctrl *gomock.Controller) *MockOrderServicer {
+	mock := &MockOrderServicer{ctrl: ctrl}
+	mock.recorder = &MockOrderServicerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOrderServicer) EXPECT() *MockOrderServicerMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockOrderServicer) Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, userID, orderCode)
+	ret0, _ := ret[0].(*domain.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockOrderServicerMockRecorder) Create(ctx, userID, orderCode interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockOrderServicer)(nil).Create), ctx, userID, orderCode)
+}

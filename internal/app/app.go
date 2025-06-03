@@ -62,9 +62,15 @@ func (a *App) Run() error {
 		return fmt.Errorf("app run: %s", userServiceErr.Error())
 	}
 
+	orderService, orderServiceErr := service.NewOrderService(unitOfWork)
+	if orderServiceErr != nil {
+		return fmt.Errorf("app run: %s", orderServiceErr.Error())
+	}
+
 	router := httptrt.New(httptrt.RouterArgs{
-		Logger:      a.Logger,
-		UserService: userService,
+		Logger:       a.Logger,
+		UserService:  userService,
+		OrderService: orderService,
 	})
 
 	errChan := make(chan error, 1)
@@ -170,10 +176,19 @@ func postgresMigrate(dir string, dsn string) error {
 func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	unitOfWork := uow.NewUnitOfWork(conn)
 
+	// user repo
 	userRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
 		return sqlc.NewUserRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(uow.RepositoryName(domain.UserRepoName), userRepoFactoryFn); regErr != nil {
+		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
+	}
+
+	// order repo
+	orderRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
+		return sqlc.NewOrderRepository(dbtx)
+	}
+	if regErr := unitOfWork.Register(uow.RepositoryName(domain.OrderRepoName), orderRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 

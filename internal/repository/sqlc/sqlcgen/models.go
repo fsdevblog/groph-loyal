@@ -5,8 +5,66 @@
 package sqlcgen
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type OrderStatusType string
+
+const (
+	OrderStatusTypePROCESSED  OrderStatusType = "PROCESSED"
+	OrderStatusTypePROCESSING OrderStatusType = "PROCESSING"
+	OrderStatusTypeINVALID    OrderStatusType = "INVALID"
+	OrderStatusTypeREGISTERED OrderStatusType = "REGISTERED"
+	OrderStatusTypeNEW        OrderStatusType = "NEW"
+)
+
+func (e *OrderStatusType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrderStatusType(s)
+	case string:
+		*e = OrderStatusType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrderStatusType: %T", src)
+	}
+	return nil
+}
+
+type NullOrderStatusType struct {
+	OrderStatusType OrderStatusType
+	Valid           bool // Valid is true if OrderStatusType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrderStatusType) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrderStatusType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrderStatusType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrderStatusType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrderStatusType), nil
+}
+
+type Order struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	UserID    int64
+	OrderCode string
+	Status    OrderStatusType
+	Accrual   int32
+}
 
 type User struct {
 	ID        int64

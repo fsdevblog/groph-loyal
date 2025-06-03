@@ -48,7 +48,6 @@ func (s *UserServiceTestSuite) SetupTest() {
 }
 
 func (s *UserServiceTestSuite) TestLogin() {
-
 	savedUserUsername := "test"
 	// аргументы вызовов для кейсов ниже.
 	argsOk := LoginUserArgs{
@@ -102,7 +101,7 @@ func (s *UserServiceTestSuite) TestLogin() {
 	for _, t := range cases {
 		s.Run(t.name, func() {
 			user, tokenStr, err := s.userService.Login(s.T().Context(), t.args)
-			s.ErrorIs(err, t.wantErr)
+			s.Require().ErrorIs(err, t.wantErr)
 
 			if t.wantErr == nil {
 				s.Equal(t.wantHashedPassword, user.Password)
@@ -113,7 +112,6 @@ func (s *UserServiceTestSuite) TestLogin() {
 				s.Equal(token.Claims.(*tokens.UserClaims).ID, savedUser.ID)
 				s.NotNil(user)
 			}
-
 		})
 	}
 }
@@ -192,7 +190,7 @@ func (s *UserServiceTestSuite) TestRegister() {
 		s.Run(t.name, func() {
 			user, tokenStr, err := s.userService.Register(s.T().Context(), t.args)
 
-			s.ErrorIs(err, t.wantErr)
+			s.Require().ErrorIs(err, t.wantErr)
 			s.Equal(t.wantUser, user)
 
 			if t.wantToken {

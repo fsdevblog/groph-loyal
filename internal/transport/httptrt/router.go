@@ -15,11 +15,13 @@ const (
 	APIRouteGroup    = "/api"
 	APIRegisterRoute = "/user/register"
 	APILoginRoute    = "/user/login"
+	APIOrdersRoute   = "/user/orders"
 )
 
 type RouterArgs struct {
 	Logger       *logrus.Logger
 	UserService  UserServicer
+	OrderService OrderServicer
 	JWTSecretKey []byte
 }
 
@@ -31,12 +33,15 @@ func New(args RouterArgs) *gin.Engine {
 	}
 
 	authHandler := NewAuthHandler(args.UserService)
+	ordersHandler := NewOrdersHandler(args.OrderService)
+
 	api := r.Group(APIRouteGroup)
 
 	api.POST(APIRegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
 	api.POST(APILoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
 
+	// ниже все роуты требуют авторизованного пользователя.
 	api.Use(middlewares.AuthRequiredMiddleware(args.JWTSecretKey))
-
+	api.POST(APIOrdersRoute, ordersHandler.Create)
 	return r
 }

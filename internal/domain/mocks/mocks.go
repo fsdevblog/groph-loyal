@@ -64,3 +64,56 @@ func (mr *MockUserRepositoryMockRecorder) FindUserByUsername(ctx, username inter
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindUserByUsername", reflect.TypeOf((*MockUserRepository)(nil).FindUserByUsername), ctx, username)
 }
+
+// MockOrderRepository is a mock of OrderRepository interface.
+type MockOrderRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockOrderRepositoryMockRecorder
+}
+
+// MockOrderRepositoryMockRecorder is the mock recorder for MockOrderRepository.
+type MockOrderRepositoryMockRecorder struct {
+	mock *MockOrderRepository
+}
+
+// NewMockOrderRepository creates a new mock instance.
+func NewMockOrderRepository(ctrl *gomock.Controller) *MockOrderRepository {
+	mock := &MockOrderRepository{ctrl: ctrl}
+	mock.recorder = &MockOrderRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOrderRepository) EXPECT() *MockOrderRepositoryMockRecorder {
+	return m.recorder
+}
+
+// CreateOrder mocks base method.
+func (m *MockOrderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateOrder", ctx, userID, orderCode)
+	ret0, _ := ret[0].(*domain.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateOrder indicates an expected call of CreateOrder.
+func (mr *MockOrderRepositoryMockRecorder) CreateOrder(ctx, userID, orderCode interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrder", reflect.TypeOf((*MockOrderRepository)(nil).CreateOrder), ctx, userID, orderCode)
+}
+
+// FindByOrderCode mocks base method.
+func (m *MockOrderRepository) FindByOrderCode(ctx context.Context, orderCode string) (*domain.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByOrderCode", ctx, orderCode)
+	ret0, _ := ret[0].(*domain.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByOrderCode indicates an expected call of FindByOrderCode.
+func (mr *MockOrderRepositoryMockRecorder) FindByOrderCode(ctx, orderCode interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByOrderCode", reflect.TypeOf((*MockOrderRepository)(nil).FindByOrderCode), ctx, orderCode)
+}

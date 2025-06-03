@@ -14,3 +14,7 @@ type UserServicer interface {
 	Register(ctx context.Context, args service.RegisterUserArgs) (*domain.User, string, error)
 	Login(ctx context.Context, args service.LoginUserArgs) (*domain.User, string, error)
 }
+
+type OrderServicer interface {
+	Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error)
+}

@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"errors"
+	"fmt"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -24,7 +25,7 @@ func checkAuthorization(c *gin.Context, jwtTokenSecret []byte) (*jwt.Token, erro
 
 	tokenStr := tokenHeader[len(bearer):]
 	token, err := tokens.ValidateUserJWT(tokenStr, jwtTokenSecret)
-	return token, err
+	return token, fmt.Errorf("check authorization: %w", err)
 }
 
 // AuthRequiredMiddleware проверяет, что запрос авторизован. Записывает в контекст (поле CurrentUserIDKey)
