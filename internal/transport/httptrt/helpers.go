@@ -1,9 +1,10 @@
 package httptrt
 
 import (
+	"unicode"
+
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/middlewares"
 	"github.com/gin-gonic/gin"
-	"unicode"
 )
 
 // getUserIDFromContext берет из контекста gin ID текущего юзера. ID устанавливается в

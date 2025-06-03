@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
@@ -14,10 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
 type AuthHandlerTestSuite struct {

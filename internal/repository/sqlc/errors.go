@@ -3,6 +3,7 @@ package sqlc
 import (
 	"errors"
 	"fmt"
+
 	"github.com/jackc/pgx/v5"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"

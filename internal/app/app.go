@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 	"sync"
 	"time"
+
+	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"

@@ -3,10 +3,11 @@ package httptrt
 import (
 	"context"
 	"errors"
-	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+
+	"github.com/fsdevblog/groph-loyal/internal/domain"
+	"github.com/gin-gonic/gin"
 )
 
 const (

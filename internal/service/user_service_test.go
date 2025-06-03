@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	repomocks "github.com/fsdevblog/groph-loyal/internal/domain/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
@@ -10,8 +13,6 @@ import (
 	uowmocks "github.com/fsdevblog/groph-loyal/internal/uow/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type UserServiceTestSuite struct {
@@ -109,7 +110,7 @@ func (s *UserServiceTestSuite) TestLogin() {
 
 				token, tokenErr := tokens.ValidateUserJWT(tokenStr, s.jwtSecret)
 				s.Require().NoError(tokenErr)
-				s.Equal(token.Claims.(*tokens.UserClaims).ID, savedUser.ID)
+				s.Equal(token.Claims.(*tokens.UserClaims).ID, savedUser.ID) //nolint:errcheck
 				s.NotNil(user)
 			}
 		})
@@ -198,7 +199,7 @@ func (s *UserServiceTestSuite) TestRegister() {
 
 				token, tokenErr := tokens.ValidateUserJWT(tokenStr, s.jwtSecret)
 				s.Require().NoError(tokenErr)
-				s.Equal(token.Claims.(*tokens.UserClaims).ID, user.ID)
+				s.Equal(token.Claims.(*tokens.UserClaims).ID, user.ID) //nolint:errcheck
 			} else {
 				s.Empty(tokenStr)
 			}

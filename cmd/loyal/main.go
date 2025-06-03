@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"os"
+
+	"github.com/fsdevblog/groph-loyal/internal/logger"
 
 	"github.com/fsdevblog/groph-loyal/internal/app"
 	"github.com/fsdevblog/groph-loyal/internal/config"

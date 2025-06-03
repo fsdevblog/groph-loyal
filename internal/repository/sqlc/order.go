@@ -2,6 +2,7 @@ package sqlc
 
 import (
 	"context"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
 )

@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
 	"time"
+
+	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/uow"

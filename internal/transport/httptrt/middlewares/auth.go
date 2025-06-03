@@ -3,10 +3,11 @@ package middlewares
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"net/http"
 )
 
 var ErrTokenNotExist = errors.New("token not exist")
@@ -14,7 +15,7 @@ var ErrTokenNotExist = errors.New("token not exist")
 const CurrentUserIDKey = "currentUserID"
 
 // checkAuthorization извлекает токен из заголовка Authorization и проверяет его. Если токен не передан, вернется ошибка
-// ErrTokenNotExist
+// ErrTokenNotExist.
 func checkAuthorization(c *gin.Context, jwtTokenSecret []byte) (*jwt.Token, error) {
 	tokenHeader := c.GetHeader("Authorization")
 	bearer := "Bearer "

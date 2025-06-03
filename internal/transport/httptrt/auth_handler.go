@@ -3,11 +3,12 @@ package httptrt
 import (
 	"context"
 	"errors"
+	"net/http"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"net/http"
 )
 
 type AuthHandler struct {
@@ -21,8 +22,8 @@ func NewAuthHandler(userService UserServicer) *AuthHandler {
 }
 
 type UserRegisterParams struct {
-	Username string `json:"login" form:"login" binding:"required,min=1,max=15"`
-	Password string `json:"password" form:"password" binding:"required,min=6,max=255"`
+	Username string `binding:"required,min=1,max=15"  form:"login"    json:"login"`
+	Password string `binding:"required,min=6,max=255" form:"password" json:"password"`
 }
 
 type UserRegisterResponse struct {
@@ -69,8 +70,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 type UserLoginParams struct {
-	Username string `json:"login" form:"login"`
-	Password string `json:"password" form:"password"`
+	Username string `form:"login"    json:"login"`
+	Password string `form:"password" json:"password"`
 }
 
 // Login POST APIRouteGroup + APILoginRoute. Аутентификация по паре логин/пароль.

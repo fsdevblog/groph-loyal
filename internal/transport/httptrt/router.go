@@ -1,10 +1,11 @@
 package httptrt
 
 import (
+	"time"
+
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
