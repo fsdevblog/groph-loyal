@@ -40,6 +40,9 @@ build:
 run:
 	cd $(CMD_DIR) && ./$(BINARY) -d "postgres://study1-user:123123123@localhost:5436/postgres?sslmode=disable" -m "../../internal/db/migrations"
 
+run-accrual:
+	cmd/accrual/accrual_linux_amd64 -d postgres://study1-user:123123123@localhost:5436/accrual?sslmode=disable -a :8081
+
 build-run: build run
 
 sqlc-generate:
