@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"net/http"
@@ -49,7 +50,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, jwtToken, createErr := h.userService.Register(ctx, service.RegisterUserArgs{
 		Username: params.Username,
-		Password: params.Password,
+		Password: psswd.Hash(params.Password),
 	})
 	if createErr != nil {
 		if errors.Is(createErr, domain.ErrDuplicateKey) {
@@ -87,7 +88,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, token, err := h.userService.Login(ctx, service.LoginUserArgs{
 		Username: params.Username,
-		Password: params.Password,
+		Password: psswd.Hash(params.Password),
 	})
 
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/testutils"
 	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
@@ -53,10 +54,10 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
 	s.Require().NoError(jwtErr)
 
-	argsOk := service.RegisterUserArgs{Username: "test", Password: "password"}
-	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
-	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: "password"}
-	argsIncorrectPassword := service.RegisterUserArgs{Username: "test", Password: ""}
+	argsOk := service.RegisterUserArgs{Username: "test", Password: psswd.Hash("password")}
+	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: psswd.Hash("password")}
+	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: psswd.Hash("password")}
+	argsIncorrectPassword := service.RegisterUserArgs{Username: "test", Password: psswd.Hash("")}
 
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsOk).Return(&domain.User{}, jwtTokenStr, nil)
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsDup).Return(nil, "", domain.ErrDuplicateKey)
@@ -71,16 +72,16 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 	}{
 		{
 			name:       "user created",
-			args:       &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:       &UserRegisterParams{Username: argsOk.Username, Password: string(argsOk.Password)},
 			wantStatus: http.StatusOK,
 		}, {
 			name:        "user already logged in",
-			args:        &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:        &UserRegisterParams{Username: argsOk.Username, Password: string(argsOk.Password)},
 			wantStatus:  http.StatusUnauthorized,
 			jwtTokenStr: &jwtTokenStr,
 		}, {
 			name:       "duplicate username",
-			args:       &UserRegisterParams{Username: argsDup.Username, Password: argsDup.Password},
+			args:       &UserRegisterParams{Username: argsDup.Username, Password: string(argsDup.Password)},
 			wantStatus: http.StatusConflict,
 		}, {
 			name:       "bad request",
@@ -90,14 +91,14 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 			name: "empty username",
 			args: &UserRegisterParams{
 				Username: argsIncorrectUsername.Username,
-				Password: argsIncorrectUsername.Password,
+				Password: string(argsIncorrectUsername.Password),
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 		}, {
 			name: "empty password",
 			args: &UserRegisterParams{
 				Username: argsIncorrectPassword.Username,
-				Password: argsIncorrectPassword.Password,
+				Password: string(argsIncorrectPassword.Password),
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
@@ -157,11 +158,11 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 	}{
 		{
 			name:       "ok",
-			args:       &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:       &UserLoginParams{Username: argsOk.Username, Password: string(argsOk.Password)},
 			wantStatus: http.StatusOK,
 		}, {
 			name:        "already logged in",
-			args:        &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:        &UserLoginParams{Username: argsOk.Username, Password: string(argsOk.Password)},
 			wantStatus:  http.StatusUnauthorized,
 			jwtTokenStr: &jwtTokenStr,
 		}, {
@@ -170,11 +171,11 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 			wantStatus: http.StatusBadRequest,
 		}, {
 			name:       "wrong username",
-			args:       &UserLoginParams{Username: argsWrongUsername.Username, Password: argsWrongUsername.Password},
+			args:       &UserLoginParams{Username: argsWrongUsername.Username, Password: string(argsWrongUsername.Password)},
 			wantStatus: http.StatusUnauthorized,
 		}, {
 			name:       "wrong password",
-			args:       &UserLoginParams{Username: argsWrongPass.Username, Password: argsWrongPass.Password},
+			args:       &UserLoginParams{Username: argsWrongPass.Username, Password: string(argsWrongPass.Password)},
 			wantStatus: http.StatusUnauthorized,
 		},
 	}

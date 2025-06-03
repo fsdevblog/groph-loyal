@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 	"sync"
 	"time"
 
@@ -51,7 +52,11 @@ func (a *App) Run() error {
 	if uowErr != nil {
 		return fmt.Errorf("app run: %s", uowErr.Error())
 	}
-	userService, userServiceErr := service.NewUserService(unitOfWork, []byte(a.Config.JWTUserSecret))
+	userService, userServiceErr := service.NewUserService(
+		unitOfWork,
+		[]byte(a.Config.JWTUserSecret),
+		new(psswd.PasswordHash),
+	)
 
 	if userServiceErr != nil {
 		return fmt.Errorf("app run: %s", userServiceErr.Error())
