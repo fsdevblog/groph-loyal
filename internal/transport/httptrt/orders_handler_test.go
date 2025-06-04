@@ -141,6 +141,11 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 			reqOpts = append(reqOpts, testutils.WithHeader("Content-Type", t.contentType))
 			res, err := testutils.MakeRequest(args, reqOpts...)
 
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
+
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
 		})
@@ -202,6 +207,11 @@ func (s *OrderHandlerTestSuite) TestIndex() {
 				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", authHeader))
 			}
 			res, err := testutils.MakeRequest(args, reqOpts...)
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
+
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
 		})

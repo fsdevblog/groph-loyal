@@ -28,6 +28,9 @@ migrate-down:
 test:
 	go test ./... -v
 
+vet:
+	go vet -vettool=./statictest ./...
+
 db-up:
 	docker compose up -d postgres
 db-down:

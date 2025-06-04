@@ -125,6 +125,10 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 			}
 
 			res, err := testutils.MakeRequest(args, reqOpts...)
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
 
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
@@ -201,6 +205,11 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 			}
 
 			res, err := testutils.MakeRequest(args, reqOpts...)
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
+
 			s.Require().NoError(err)
 			s.Equal(t.wantStatus, res.StatusCode)
 		})
