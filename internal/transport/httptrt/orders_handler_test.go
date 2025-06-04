@@ -146,3 +146,64 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 		})
 	}
 }
+
+func (s *OrderHandlerTestSuite) TestIndex() {
+	var userID int64 = 1
+	var noOrdersUserID int64 = 2
+
+	userJWTToken, uJWTErr := tokens.GenerateUserJWT(userID, time.Hour, s.jwtSecret)
+	s.Require().NoError(uJWTErr)
+	userNoOrdersJWTToken, uNoOrdersJWTErr := tokens.GenerateUserJWT(noOrdersUserID, time.Hour, s.jwtSecret)
+	s.Require().NoError(uNoOrdersJWTErr)
+
+	orders := []domain.Order{
+		{
+			ID:        1,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			UserID:    userID,
+			OrderCode: "11111111",
+			Status:    domain.OrderStatusNew,
+			Accrual:   0,
+		},
+	}
+	s.mockOrderService.EXPECT().GetByUserID(gomock.Any(), userID).Return(orders, nil)
+	s.mockOrderService.EXPECT().GetByUserID(gomock.Any(), noOrdersUserID).Return([]domain.Order{}, nil)
+
+	cases := []struct {
+		name       string
+		jwtToken   string
+		wantStatus int
+	}{
+		{
+			name:       "all ok",
+			jwtToken:   userJWTToken,
+			wantStatus: http.StatusOK,
+		}, {
+			name:       "not authorized",
+			jwtToken:   "",
+			wantStatus: http.StatusUnauthorized,
+		}, {
+			name:       "no orders",
+			jwtToken:   userNoOrdersJWTToken,
+			wantStatus: http.StatusNoContent,
+		},
+	}
+	for _, t := range cases {
+		s.Run(t.name, func() {
+			args := testutils.RequestArgs{
+				Router: s.router,
+				Method: http.MethodGet,
+				URL:    APIRouteGroup + APIOrdersRoute,
+			}
+			var reqOpts []func(*testutils.RequestOptions)
+			if t.jwtToken != "" {
+				authHeader := fmt.Sprintf("Bearer %s", t.jwtToken)
+				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", authHeader))
+			}
+			res, err := testutils.MakeRequest(args, reqOpts...)
+			s.Require().NoError(err)
+			s.Equal(t.wantStatus, res.StatusCode)
+		})
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/service"
@@ -74,6 +75,13 @@ type UserLoginParams struct {
 	Password string `form:"password" json:"password"`
 }
 
+type UserResponse struct {
+	ID        int64     `json:"ID"`
+	Username  string    `json:"login"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // Login POST APIRouteGroup + APILoginRoute. Аутентификация по паре логин/пароль.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var params UserLoginParams
@@ -101,5 +109,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	c.Header("Authorization", "Bearer "+token)
-	c.JSON(http.StatusOK, gin.H{"user": user})
+
+	c.JSON(http.StatusOK, gin.H{"user": UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}})
 }

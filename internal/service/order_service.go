@@ -58,3 +58,12 @@ func (o *OrderService) Create(ctx context.Context, userID int64, orderCode strin
 	}
 	return order, nil
 }
+
+// GetByUserID Возвращает заказы от userID отсортированные по дате создания по убыванию.
+func (o *OrderService) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
+	orders, err := o.orderRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, err //nolint:wrapcheck
+	}
+	return orders, nil
+}

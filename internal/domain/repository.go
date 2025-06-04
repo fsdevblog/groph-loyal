@@ -18,4 +18,5 @@ type UserRepository interface {
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, userID int64, orderCode string) (*Order, error)
 	FindByOrderCode(ctx context.Context, orderCode string) (*Order, error)
+	GetByUserID(ctx context.Context, userID int64) ([]Order, error)
 }

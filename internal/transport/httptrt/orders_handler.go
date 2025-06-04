@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -26,6 +27,14 @@ func NewOrdersHandler(orderSvs OrderServicer) *OrdersHandler {
 	}
 }
 
+type OrderResponse struct {
+	CreatedAt time.Time          `json:"uploaded_at"`
+	OrderCode string             `json:"number"`
+	Status    domain.OrderStatus `json:"status"`
+	Accrual   uint               `json:"accrual,omitempty"`
+}
+
+// Create POST APIRouteGroup + APIOrdersRoute.
 func (o *OrdersHandler) Create(c *gin.Context) {
 	currentUserID := getUserIDFromContext(c)
 
@@ -49,7 +58,7 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	order, createErr := o.orderSvs.Create(reqCtx, currentUserID, orderCode)
+	_, createErr := o.orderSvs.Create(reqCtx, currentUserID, orderCode)
 	if createErr != nil {
 		var duplicateErr *domain.DuplicateOrderError
 
@@ -66,5 +75,37 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 			SetType(gin.ErrorTypePrivate)
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"order": order})
+
+	c.AbortWithStatus(http.StatusAccepted)
+}
+
+// Index GET APIRouteGroup + APIOrdersRoute.
+func (o *OrdersHandler) Index(c *gin.Context) {
+	currentUserID := getUserIDFromContext(c)
+
+	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
+	defer cancel()
+	orders, err := o.orderSvs.GetByUserID(reqCtx, currentUserID)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err).
+			SetType(gin.ErrorTypePrivate)
+		return
+	}
+
+	if len(orders) == 0 {
+		c.AbortWithStatus(http.StatusNoContent)
+		return
+	}
+
+	var response = make([]OrderResponse, len(orders))
+	for i, order := range orders {
+		response[i] = OrderResponse{
+			CreatedAt: order.CreatedAt,
+			OrderCode: order.OrderCode,
+			Status:    order.Status,
+			Accrual:   order.Accrual,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }

@@ -17,4 +17,5 @@ type UserServicer interface {
 
 type OrderServicer interface {
 	Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error)
+	GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error)
 }

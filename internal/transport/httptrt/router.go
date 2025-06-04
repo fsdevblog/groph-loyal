@@ -41,8 +41,9 @@ func New(args RouterArgs) *gin.Engine {
 	api.POST(APIRegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
 	api.POST(APILoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
 
-	// ниже все роуты требуют авторизованного пользователя.
 	api.Use(middlewares.AuthRequiredMiddleware(args.JWTSecretKey))
+	// ниже все роуты группы требуют авторизованного пользователя.
 	api.POST(APIOrdersRoute, ordersHandler.Create)
+	api.GET(APIOrdersRoute, ordersHandler.Index)
 	return r
 }

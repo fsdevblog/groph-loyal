@@ -105,3 +105,18 @@ func (mr *MockOrderServicerMockRecorder) Create(ctx, userID, orderCode interface
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockOrderServicer)(nil).Create), ctx, userID, orderCode)
 }
+
+// GetByUserID mocks base method.
+func (m *MockOrderServicer) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByUserID", ctx, userID)
+	ret0, _ := ret[0].([]domain.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByUserID indicates an expected call of GetByUserID.
+func (mr *MockOrderServicerMockRecorder) GetByUserID(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockOrderServicer)(nil).GetByUserID), ctx, userID)
+}

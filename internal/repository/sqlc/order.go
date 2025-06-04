@@ -36,6 +36,19 @@ func (o *orderRepository) FindByOrderCode(ctx context.Context, orderCode string)
 	return convertOrderModel(dbOrder), nil
 }
 
+// GetByUserID Возвращает список заказов по id юзера, отсортированный по дате создания по убыванию.
+func (o *orderRepository) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
+	dbOrders, err := o.q.Orders_GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, convertErr(err, "getting orders by userID `%d`", userID)
+	}
+	var orders = make([]domain.Order, len(dbOrders))
+	for i, order := range dbOrders {
+		orders[i] = *convertOrderModel(order)
+	}
+	return orders, nil
+}
+
 func convertOrderModel(dbModel sqlcgen.Order) *domain.Order {
 	accrual, _ := safeConvertInt32ToUint(dbModel.Accrual)
 

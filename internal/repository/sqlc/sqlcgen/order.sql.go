@@ -62,3 +62,35 @@ func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) 
 	)
 	return i, err
 }
+
+const orders_GetByUserID = `-- name: Orders_GetByUserID :many
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+`
+
+func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order, error) {
+	rows, err := q.db.Query(ctx, orders_GetByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.OrderCode,
+			&i.Status,
+			&i.Accrual,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
