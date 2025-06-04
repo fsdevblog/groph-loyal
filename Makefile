@@ -1,9 +1,9 @@
 DATABASE_DSN=postgres://study1-user:123123123@localhost:5435/postgres?sslmode=disable
 
-CMD_DIR=cmd/loyal
+CMD_DIR=cmd/gophermart
 
 # Название бинарного файла
-BINARY=loyal
+BINARY=gophermart
 
 # Создать миграцию
 migrate-create:

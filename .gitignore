@@ -1,5 +1,5 @@
 .idea
 .env
-cmd/loyal/loyal
+cmd/gophermart/gophermart
 
 cmd/test/*
