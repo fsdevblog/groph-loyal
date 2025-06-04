@@ -44,6 +44,7 @@ func (a *App) Run() error {
 	notifyCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	a.Logger.Infof("Starting app on %+v", a.Config)
 	conn, connErr := initPostgres(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
 	if connErr != nil {
 		return connErr
@@ -72,6 +73,7 @@ func (a *App) Run() error {
 		Logger:       a.Logger,
 		UserService:  userService,
 		OrderService: orderService,
+		JWTSecretKey: []byte(a.Config.JWTUserSecret),
 	})
 
 	errChan := make(chan error, 1)

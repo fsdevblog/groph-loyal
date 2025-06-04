@@ -50,3 +50,6 @@ build-run: build run
 
 sqlc-generate:
 	rm -rf internal/db/repository/sqlc/sqlcgen/* && docker compose run --rm sqlc
+
+auto-tests:
+	./gophermarttest -test.v -test.run=.* -gophermart-binary-path=./cmd/gophermart/gophermart -accrual-binary-path=./cmd/accrual/accrual_linux_amd64 -accrual-database-uri="postgres://study1-user:123123123@localhost:5436/accrual?sslmode=disable" -gophermart-database-uri="postgres://study1-user:123123123@localhost:5436/postgres?sslmode=disable" -gophermart-host=localhost -accrual-host=localhost -gophermart-port=8080 -accrual-port=8081

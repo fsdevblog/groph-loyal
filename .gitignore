@@ -2,5 +2,6 @@
 .env
 cmd/gophermart/gophermart
 statictest
+gophermarttest
 
 cmd/test/*
