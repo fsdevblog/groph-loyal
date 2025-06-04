@@ -26,7 +26,10 @@ func checkAuthorization(c *gin.Context, jwtTokenSecret []byte) (*jwt.Token, erro
 
 	tokenStr := tokenHeader[len(bearer):]
 	token, err := tokens.ValidateUserJWT(tokenStr, jwtTokenSecret)
-	return token, fmt.Errorf("check authorization: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("check authorization: %w", err)
+	}
+	return token, nil
 }
 
 // AuthRequiredMiddleware проверяет, что запрос авторизован. Записывает в контекст (поле CurrentUserIDKey)
@@ -35,7 +38,8 @@ func AuthRequiredMiddleware(jwtTokenSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := checkAuthorization(c, jwtTokenSecret)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("auth required")).
+				SetType(gin.ErrorTypePublic)
 			if !errors.Is(err, ErrTokenNotExist) {
 				_ = c.Error(err).SetType(gin.ErrorTypePrivate)
 			}
@@ -57,7 +61,8 @@ func NonAuthRequiredMiddleware(jwtTokenSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, err := checkAuthorization(c, jwtTokenSecret)
 		if err == nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Already authorized"})
+			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("you are already logged in")).
+				SetType(gin.ErrorTypePublic)
 			return
 		}
 

@@ -142,7 +142,7 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsOk).
-		Return(&domain.User{}, "token", nil)
+		Return(&domain.User{}, "token", nil).Times(1)
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsWrongUsername).
 		Return(nil, "", domain.ErrRecordNotFound)
