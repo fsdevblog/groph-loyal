@@ -11,6 +11,41 @@ import (
 	decimal "github.com/shopspring/decimal"
 )
 
+const balanceTransaction_Create = `-- name: BalanceTransaction_Create :one
+INSERT INTO balance_transactions
+(user_id, order_id, amount, direction)
+VALUES
+    ($1, $2, $3, $4::balance_transaction_type)
+RETURNING id, created_at, updated_at, user_id, order_id, amount, direction
+`
+
+type BalanceTransaction_CreateParams struct {
+	UserID    int64
+	OrderID   int64
+	Amount    decimal.Decimal
+	Direction BalanceTransactionType
+}
+
+func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg BalanceTransaction_CreateParams) (BalanceTransaction, error) {
+	row := q.db.QueryRow(ctx, balanceTransaction_Create,
+		arg.UserID,
+		arg.OrderID,
+		arg.Amount,
+		arg.Direction,
+	)
+	var i BalanceTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
+		&i.OrderID,
+		&i.Amount,
+		&i.Direction,
+	)
+	return i, err
+}
+
 const balanceTransaction_SumByUserID = `-- name: BalanceTransaction_SumByUserID :many
 SELECT SUM(amount)::numeric AS sum, direction FROM balance_transactions WHERE user_id = $1 GROUP BY direction
 `

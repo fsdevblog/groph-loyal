@@ -11,6 +11,7 @@ import (
 	domain "github.com/fsdevblog/groph-loyal/internal/domain"
 	service "github.com/fsdevblog/groph-loyal/internal/service"
 	gomock "github.com/golang/mock/gomock"
+	decimal "github.com/shopspring/decimal"
 )
 
 // MockUserServicer is a mock of UserServicer interface.
@@ -157,4 +158,19 @@ func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) 
 func (mr *MockBalanceServicerMockRecorder) GetUserBalance(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserBalance", reflect.TypeOf((*MockBalanceServicer)(nil).GetUserBalance), ctx, userID)
+}
+
+// Withdraw mocks base method.
+func (m *MockBalanceServicer) Withdraw(ctx context.Context, userID int64, orderCode string, amount decimal.Decimal) (*domain.BalanceTransaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Withdraw", ctx, userID, orderCode, amount)
+	ret0, _ := ret[0].(*domain.BalanceTransaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Withdraw indicates an expected call of Withdraw.
+func (mr *MockBalanceServicerMockRecorder) Withdraw(ctx, userID, orderCode, amount interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Withdraw", reflect.TypeOf((*MockBalanceServicer)(nil).Withdraw), ctx, userID, orderCode, amount)
 }

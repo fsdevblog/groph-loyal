@@ -5,6 +5,8 @@ package api
 import (
 	"context"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 )
@@ -22,4 +24,10 @@ type OrderServicer interface {
 
 type BalanceServicer interface {
 	GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error)
+	Withdraw(
+		ctx context.Context,
+		userID int64,
+		orderCode string,
+		amount decimal.Decimal,
+	) (*domain.BalanceTransaction, error)
 }

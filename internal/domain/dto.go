@@ -28,7 +28,7 @@ const (
 
 type BalanceTransactionCreateDTO struct {
 	UserID    int64
-	OrderID   *int64
+	OrderID   int64
 	Direction DirectionType
 	Amount    decimal.Decimal
 }

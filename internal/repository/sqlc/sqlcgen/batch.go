@@ -10,7 +10,6 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	decimal "github.com/shopspring/decimal"
 )
 
@@ -18,27 +17,27 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
-const balanceTransaction_Create = `-- name: BalanceTransaction_Create :batchexec
+const balanceTransaction_CreateBatch = `-- name: BalanceTransaction_CreateBatch :batchexec
 INSERT INTO balance_transactions
     (user_id, order_id, amount, direction)
 VALUES
     ($1, $2, $3, $4::balance_transaction_type)
 `
 
-type BalanceTransaction_CreateBatchResults struct {
+type BalanceTransaction_CreateBatchBatchResults struct {
 	br     pgx.BatchResults
 	tot    int
 	closed bool
 }
 
-type BalanceTransaction_CreateParams struct {
+type BalanceTransaction_CreateBatchParams struct {
 	UserID    int64
-	OrderID   pgtype.Int8
+	OrderID   int64
 	Amount    decimal.Decimal
 	Direction BalanceTransactionType
 }
 
-func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg []BalanceTransaction_CreateParams) *BalanceTransaction_CreateBatchResults {
+func (q *Queries) BalanceTransaction_CreateBatch(ctx context.Context, arg []BalanceTransaction_CreateBatchParams) *BalanceTransaction_CreateBatchBatchResults {
 	batch := &pgx.Batch{}
 	for _, a := range arg {
 		vals := []interface{}{
@@ -47,13 +46,13 @@ func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg []BalanceTr
 			a.Amount,
 			a.Direction,
 		}
-		batch.Queue(balanceTransaction_Create, vals...)
+		batch.Queue(balanceTransaction_CreateBatch, vals...)
 	}
 	br := q.db.SendBatch(ctx, batch)
-	return &BalanceTransaction_CreateBatchResults{br, len(arg), false}
+	return &BalanceTransaction_CreateBatchBatchResults{br, len(arg), false}
 }
 
-func (b *BalanceTransaction_CreateBatchResults) Exec(f func(int, error)) {
+func (b *BalanceTransaction_CreateBatchBatchResults) Exec(f func(int, error)) {
 	defer b.br.Close()
 	for t := 0; t < b.tot; t++ {
 		if b.closed {
@@ -69,7 +68,7 @@ func (b *BalanceTransaction_CreateBatchResults) Exec(f func(int, error)) {
 	}
 }
 
-func (b *BalanceTransaction_CreateBatchResults) Close() error {
+func (b *BalanceTransaction_CreateBatchBatchResults) Close() error {
 	b.closed = true
 	return b.br.Close()
 }

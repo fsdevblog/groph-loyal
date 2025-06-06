@@ -5,7 +5,6 @@ import (
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type balanceTransactionRepository struct {
@@ -16,27 +15,39 @@ func NewBalanceTransactionRepository(conn sqlcgen.DBTX) domain.BalanceTransactio
 	return &balanceTransactionRepository{q: sqlcgen.New(conn)}
 }
 
+func (b *balanceTransactionRepository) Create(
+	ctx context.Context,
+	transaction domain.BalanceTransactionCreateDTO,
+) (*domain.BalanceTransaction, error) {
+
+	dbTrans, err := b.q.BalanceTransaction_Create(ctx, sqlcgen.BalanceTransaction_CreateParams{
+		UserID:    transaction.UserID,
+		OrderID:   transaction.OrderID,
+		Amount:    transaction.Amount,
+		Direction: sqlcgen.BalanceTransactionType(transaction.Direction),
+	})
+
+	if err != nil {
+		return nil, convertErr(err, "creating balance transaction")
+	}
+	return convertBalanceTransactionModel(dbTrans), nil
+}
+
 func (b *balanceTransactionRepository) BatchCreate(
 	ctx context.Context,
 	transactions []domain.BalanceTransactionCreateDTO,
 	fn domain.BalanceTransBatchQueryRowDTO,
 ) {
-	var params = make([]sqlcgen.BalanceTransaction_CreateParams, len(transactions))
+	var params = make([]sqlcgen.BalanceTransaction_CreateBatchParams, len(transactions))
 	for i, transaction := range transactions {
-		var orderID int64
-		if transaction.OrderID != nil {
-			orderID = *transaction.OrderID
-		}
-		params[i] = sqlcgen.BalanceTransaction_CreateParams{
-			UserID: transaction.UserID,
-			OrderID: pgtype.Int8{
-				Int64: orderID,
-				Valid: transaction.OrderID != nil,
-			},
-			Amount: transaction.Amount,
+
+		params[i] = sqlcgen.BalanceTransaction_CreateBatchParams{
+			UserID:  transaction.UserID,
+			OrderID: transaction.OrderID,
+			Amount:  transaction.Amount,
 		}
 	}
-	r := b.q.BalanceTransaction_Create(ctx, params)
+	r := b.q.BalanceTransaction_CreateBatch(ctx, params)
 	r.Exec(func(i int, err error) {
 		fn(i, convertErr(err, "creating balance transaction"))
 	})
@@ -59,4 +70,15 @@ func (b *balanceTransactionRepository) GetUserBalance(
 		}
 	}
 	return sum, nil
+}
+
+func convertBalanceTransactionModel(model sqlcgen.BalanceTransaction) *domain.BalanceTransaction {
+	return &domain.BalanceTransaction{
+		ID:        model.ID,
+		CreatedAt: model.CreatedAt.Time,
+		UpdatedAt: model.UpdatedAt.Time,
+		UserID:    model.UserID,
+		OrderID:   model.OrderID,
+		Amount:    model.Amount,
+	}
 }

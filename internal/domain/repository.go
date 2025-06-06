@@ -27,4 +27,5 @@ type OrderRepository interface {
 type BalanceTransactionRepository interface {
 	BatchCreate(ctx context.Context, transactions []BalanceTransactionCreateDTO, fn BalanceTransBatchQueryRowDTO)
 	GetUserBalance(ctx context.Context, userID int64) (*UserBalanceSumDTO, error)
+	Create(ctx context.Context, transaction BalanceTransactionCreateDTO) (*BalanceTransaction, error)
 }

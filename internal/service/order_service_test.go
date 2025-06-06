@@ -113,10 +113,10 @@ func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
 			_ domain.BalanceTransBatchQueryRowDTO,
 		) {
 			// проверяем что в мок попали нужные данные.
-			s.True(len(btDTO) == 1) // только одна запись с нужным статусом.
+			s.Len(btDTO, 1) // только одна запись с нужным статусом.
 			s.Equal(domain.DirectionDebit, btDTO[0].Direction)
 			s.NotNil(btDTO[0].OrderID)
-			s.Equal(int64(1), *btDTO[0].OrderID) // и id этой записи - 1.
+			s.Equal(int64(1), btDTO[0].OrderID) // и id этой записи - 1.
 		})
 
 	// Настраиваем мок для выполнения транзакции

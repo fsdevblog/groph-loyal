@@ -103,7 +103,7 @@ type BalanceTransaction struct {
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	UserID    int64
-	OrderID   pgtype.Int8
+	OrderID   int64
 	Amount    decimal.Decimal
 	Direction BalanceTransactionType
 }

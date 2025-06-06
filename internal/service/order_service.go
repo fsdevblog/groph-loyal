@@ -90,7 +90,7 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 		if order.Status == domain.OrderStatusProcessed {
 			transDTO = append(transDTO, domain.BalanceTransactionCreateDTO{
 				UserID:    order.UserID,
-				OrderID:   &order.ID,
+				OrderID:   order.ID,
 				Amount:    order.Accrual,
 				Direction: domain.DirectionDebit,
 			})
@@ -110,7 +110,7 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 
 	var balanceTransactionErr error
 
-	balanceRepo.BatchCreate(ctx, transDTO, func(i int, err error) {
+	balanceRepo.BatchCreate(ctx, transDTO, func(_ int, err error) {
 		if err != nil {
 			if errors.Is(err, domain.ErrDuplicateKey) {
 				return

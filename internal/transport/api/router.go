@@ -13,11 +13,12 @@ const (
 )
 
 const (
-	RouteGroup    = "/api"
-	RegisterRoute = "/user/register"
-	LoginRoute    = "/user/login"
-	OrdersRoute   = "/user/orders"
-	BalanceRoute  = "/user/balance"
+	RouteGroup           = "/api"
+	RegisterRoute        = "/user/register"
+	LoginRoute           = "/user/login"
+	OrdersRoute          = "/user/orders"
+	BalanceRoute         = "/user/balance"
+	BalanceWithdrawRoute = "/user/balance/withdraw"
 )
 
 type RouterArgs struct {
@@ -48,6 +49,8 @@ func New(args RouterArgs) *gin.Engine {
 	// ниже все роуты группы требуют авторизованного пользователя.
 	api.POST(OrdersRoute, ordersHandler.Create)
 	api.GET(OrdersRoute, ordersHandler.Index)
+
 	api.GET(BalanceRoute, balanceHandler.Index)
+	api.POST(BalanceWithdrawRoute, balanceHandler.Withdraw)
 	return r
 }

@@ -195,6 +195,21 @@ func (mr *MockBalanceTransactionRepositoryMockRecorder) BatchCreate(ctx, transac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchCreate", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).BatchCreate), ctx, transactions, fn)
 }
 
+// Create mocks base method.
+func (m *MockBalanceTransactionRepository) Create(ctx context.Context, transaction domain.BalanceTransactionCreateDTO) (*domain.BalanceTransaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, transaction)
+	ret0, _ := ret[0].(*domain.BalanceTransaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockBalanceTransactionRepositoryMockRecorder) Create(ctx, transaction interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).Create), ctx, transaction)
+}
+
 // GetUserBalance mocks base method.
 func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error) {
 	m.ctrl.T.Helper()
