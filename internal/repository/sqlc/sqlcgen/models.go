@@ -9,7 +9,50 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	decimal "github.com/shopspring/decimal"
 )
+
+type BalanceTransactionType string
+
+const (
+	BalanceTransactionTypeDebit  BalanceTransactionType = "debit"
+	BalanceTransactionTypeCredit BalanceTransactionType = "credit"
+)
+
+func (e *BalanceTransactionType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BalanceTransactionType(s)
+	case string:
+		*e = BalanceTransactionType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BalanceTransactionType: %T", src)
+	}
+	return nil
+}
+
+type NullBalanceTransactionType struct {
+	BalanceTransactionType BalanceTransactionType
+	Valid                  bool // Valid is true if BalanceTransactionType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBalanceTransactionType) Scan(value interface{}) error {
+	if value == nil {
+		ns.BalanceTransactionType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BalanceTransactionType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBalanceTransactionType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BalanceTransactionType), nil
+}
 
 type OrderStatusType string
 
@@ -17,7 +60,6 @@ const (
 	OrderStatusTypePROCESSED  OrderStatusType = "PROCESSED"
 	OrderStatusTypePROCESSING OrderStatusType = "PROCESSING"
 	OrderStatusTypeINVALID    OrderStatusType = "INVALID"
-	OrderStatusTypeREGISTERED OrderStatusType = "REGISTERED"
 	OrderStatusTypeNEW        OrderStatusType = "NEW"
 )
 
@@ -56,6 +98,16 @@ func (ns NullOrderStatusType) Value() (driver.Value, error) {
 	return string(ns.OrderStatusType), nil
 }
 
+type BalanceTransaction struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	UserID    int64
+	OrderID   pgtype.Int8
+	Amount    decimal.Decimal
+	Direction BalanceTransactionType
+}
+
 type Order struct {
 	ID        int64
 	CreatedAt pgtype.Timestamptz
@@ -63,7 +115,7 @@ type Order struct {
 	UserID    int64
 	OrderCode string
 	Status    OrderStatusType
-	Accrual   int32
+	Accrual   decimal.Decimal
 }
 
 type User struct {

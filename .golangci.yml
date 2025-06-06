@@ -86,12 +86,12 @@ linters:
     exhaustruct:
       exclude:
         - ^gorm.io/gorm/logger$
-        - ^net/httptrt.Client$
-        - ^net/httptrt.Cookie$
-        - ^net/httptrt.Request$
-        - ^net/httptrt.Response$
-        - ^net/httptrt.Server$
-        - ^net/httptrt.Transport$
+        - ^net/api.Client$
+        - ^net/api.Cookie$
+        - ^net/api.Request$
+        - ^net/api.Response$
+        - ^net/api.Server$
+        - ^net/api.Transport$
         - ^net/url.URL$
         - ^os/exec.Cmd$
         - ^reflect.StructField$

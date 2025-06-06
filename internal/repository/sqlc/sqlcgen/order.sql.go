@@ -7,6 +7,8 @@ package sqlcgen
 
 import (
 	"context"
+
+	decimal "github.com/shopspring/decimal"
 )
 
 const orders_Create = `-- name: Orders_Create :one
@@ -21,7 +23,7 @@ type Orders_CreateParams struct {
 	UserID    int64
 	OrderCode string
 	Status    OrderStatusType
-	Accrual   int32
+	Accrual   decimal.Decimal
 }
 
 func (q *Queries) Orders_Create(ctx context.Context, arg Orders_CreateParams) (Order, error) {
@@ -61,6 +63,43 @@ func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) 
 		&i.Accrual,
 	)
 	return i, err
+}
+
+const orders_GetByStatuses = `-- name: Orders_GetByStatuses :many
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual FROM orders WHERE status =ANY($1::order_status_type[]) LIMIT $2
+`
+
+type Orders_GetByStatusesParams struct {
+	Statuses []OrderStatusType
+	Limit    int32
+}
+
+func (q *Queries) Orders_GetByStatuses(ctx context.Context, arg Orders_GetByStatusesParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, orders_GetByStatuses, arg.Statuses, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.OrderCode,
+			&i.Status,
+			&i.Accrual,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const orders_GetByUserID = `-- name: Orders_GetByUserID :many

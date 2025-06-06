@@ -12,11 +12,11 @@ type TX interface {
 	Get(name RepositoryName) (Repository, error)
 }
 
-// DBTX Не хочется протягивать сюда sqlcgen.DBTX, поэтому просто повторим интерфейс.
 type DBTX interface {
 	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...interface{}) pgx.Row
+	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
 }
 
 type UOW interface {

@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	uow "github.com/fsdevblog/groph-loyal/internal/uow"
+	uow "github.com/fsdevblog/groph-loyal/pkg/uow"
 	gomock "github.com/golang/mock/gomock"
 	pgx "github.com/jackc/pgx/v5"
 	pgconn "github.com/jackc/pgx/v5/pgconn"
@@ -132,6 +132,20 @@ func (mr *MockDBTXMockRecorder) QueryRow(arg0, arg1 interface{}, arg2 ...interfa
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryRow", reflect.TypeOf((*MockDBTX)(nil).QueryRow), varargs...)
+}
+
+// SendBatch mocks base method.
+func (m *MockDBTX) SendBatch(arg0 context.Context, arg1 *pgx.Batch) pgx.BatchResults {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendBatch", arg0, arg1)
+	ret0, _ := ret[0].(pgx.BatchResults)
+	return ret0
+}
+
+// SendBatch indicates an expected call of SendBatch.
+func (mr *MockDBTXMockRecorder) SendBatch(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendBatch", reflect.TypeOf((*MockDBTX)(nil).SendBatch), arg0, arg1)
 }
 
 // MockUOW is a mock of UOW interface.

@@ -1,4 +1,4 @@
-package httptrt
+package api
 
 import (
 	"bytes"
@@ -8,12 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/mocks"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/testutils"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -130,7 +132,7 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodPost,
-				URL:    APIRouteGroup + APIOrdersRoute,
+				URL:    RouteGroup + OrdersRoute,
 				Body:   bytes.NewReader(t.payload),
 			}
 			var reqOpts []func(*testutils.RequestOptions)
@@ -169,7 +171,7 @@ func (s *OrderHandlerTestSuite) TestIndex() {
 			UserID:    userID,
 			OrderCode: "11111111",
 			Status:    domain.OrderStatusNew,
-			Accrual:   0,
+			Accrual:   decimal.NewFromInt(0),
 		},
 	}
 	s.mockOrderService.EXPECT().GetByUserID(gomock.Any(), userID).Return(orders, nil)
@@ -199,7 +201,7 @@ func (s *OrderHandlerTestSuite) TestIndex() {
 			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodGet,
-				URL:    APIRouteGroup + APIOrdersRoute,
+				URL:    RouteGroup + OrdersRoute,
 			}
 			var reqOpts []func(*testutils.RequestOptions)
 			if t.jwtToken != "" {

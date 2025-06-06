@@ -1,4 +1,4 @@
-package httptrt
+package api
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/service"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/mocks"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/testutils"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -114,7 +114,7 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodPost,
-				URL:    APIRouteGroup + APIRegisterRoute,
+				URL:    RouteGroup + RegisterRoute,
 				Body:   bytes.NewReader(payload),
 			}
 
@@ -194,7 +194,7 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 			args := testutils.RequestArgs{
 				Router: s.router,
 				Method: http.MethodPost,
-				URL:    APIRouteGroup + APILoginRoute,
+				URL:    RouteGroup + LoginRoute,
 				Body:   bytes.NewReader(payload),
 			}
 

@@ -1,4 +1,4 @@
-package httptrt
+package api
 
 //go:generate mockgen -source=interfaces.go -destination=mocks/mocks.go -package=mocks
 
@@ -18,4 +18,8 @@ type UserServicer interface {
 type OrderServicer interface {
 	Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error)
 	GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error)
+}
+
+type BalanceServicer interface {
+	GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error)
 }

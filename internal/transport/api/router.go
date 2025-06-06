@@ -1,9 +1,9 @@
-package httptrt
+package api
 
 import (
 	"time"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/middlewares"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -13,16 +13,18 @@ const (
 )
 
 const (
-	APIRouteGroup    = "/api"
-	APIRegisterRoute = "/user/register"
-	APILoginRoute    = "/user/login"
-	APIOrdersRoute   = "/user/orders"
+	RouteGroup    = "/api"
+	RegisterRoute = "/user/register"
+	LoginRoute    = "/user/login"
+	OrdersRoute   = "/user/orders"
+	BalanceRoute  = "/user/balance"
 )
 
 type RouterArgs struct {
 	Logger       *logrus.Logger
 	UserService  UserServicer
 	OrderService OrderServicer
+	BlService    BalanceServicer
 	JWTSecretKey []byte
 }
 
@@ -35,15 +37,17 @@ func New(args RouterArgs) *gin.Engine {
 
 	authHandler := NewAuthHandler(args.UserService)
 	ordersHandler := NewOrdersHandler(args.OrderService)
+	balanceHandler := NewBalanceHandler(args.BlService)
 
-	api := r.Group(APIRouteGroup)
+	api := r.Group(RouteGroup)
 
-	api.POST(APIRegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
-	api.POST(APILoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
+	api.POST(RegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
+	api.POST(LoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
 
 	api.Use(middlewares.AuthRequiredMiddleware(args.JWTSecretKey))
 	// ниже все роуты группы требуют авторизованного пользователя.
-	api.POST(APIOrdersRoute, ordersHandler.Create)
-	api.GET(APIOrdersRoute, ordersHandler.Index)
+	api.POST(OrdersRoute, ordersHandler.Create)
+	api.GET(OrdersRoute, ordersHandler.Index)
+	api.GET(BalanceRoute, balanceHandler.Index)
 	return r
 }

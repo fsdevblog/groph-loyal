@@ -1,4 +1,4 @@
-package httptrt
+package api
 
 import (
 	"context"
@@ -28,13 +28,13 @@ func NewOrdersHandler(orderSvs OrderServicer) *OrdersHandler {
 }
 
 type OrderResponse struct {
-	CreatedAt time.Time          `json:"uploaded_at"`
-	OrderCode string             `json:"number"`
-	Status    domain.OrderStatus `json:"status"`
-	Accrual   uint               `json:"accrual,omitempty"`
+	CreatedAt time.Time              `json:"uploaded_at"`
+	OrderCode string                 `json:"number"`
+	Status    domain.OrderStatusType `json:"status"`
+	Accrual   float64                `json:"accrual,omitempty"`
 }
 
-// Create POST APIRouteGroup + APIOrdersRoute.
+// Create POST RouteGroup + OrdersRoute.
 func (o *OrdersHandler) Create(c *gin.Context) {
 	currentUserID := getUserIDFromContext(c)
 
@@ -79,7 +79,7 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 	c.AbortWithStatus(http.StatusAccepted)
 }
 
-// Index GET APIRouteGroup + APIOrdersRoute.
+// Index GET RouteGroup + OrdersRoute.
 func (o *OrdersHandler) Index(c *gin.Context) {
 	currentUserID := getUserIDFromContext(c)
 
@@ -103,7 +103,7 @@ func (o *OrdersHandler) Index(c *gin.Context) {
 			CreatedAt: order.CreatedAt,
 			OrderCode: order.OrderCode,
 			Status:    order.Status,
-			Accrual:   order.Accrual,
+			Accrual:   order.Accrual.InexactFloat64(),
 		}
 	}
 

@@ -1,4 +1,4 @@
-package httptrt
+package api
 
 import (
 	"context"
@@ -32,7 +32,7 @@ type UserRegisterResponse struct {
 	Username string `json:"login"`
 }
 
-// Register POST APIRouteGroup + APIRegisterRoute. Регистрирует пользователя и аутентифицирует его.
+// Register POST RouteGroup + RegisterRoute. Регистрирует пользователя и аутентифицирует его.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var params UserRegisterParams
 	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
@@ -82,7 +82,7 @@ type UserResponse struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// Login POST APIRouteGroup + APILoginRoute. Аутентификация по паре логин/пароль.
+// Login POST RouteGroup + LoginRoute. Аутентификация по паре логин/пароль.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var params UserLoginParams
 	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {

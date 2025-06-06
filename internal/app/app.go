@@ -7,14 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/pkg/uow"
+
 	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
 	"github.com/fsdevblog/groph-loyal/internal/service"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt"
-	"github.com/fsdevblog/groph-loyal/internal/uow"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/sirupsen/logrus"
 
@@ -69,10 +70,16 @@ func (a *App) Run() error {
 		return fmt.Errorf("app run: %s", orderServiceErr.Error())
 	}
 
-	router := httptrt.New(httptrt.RouterArgs{
+	blService, blServiceErr := service.NewBalanceTransactionService(unitOfWork)
+	if blServiceErr != nil {
+		return fmt.Errorf("app run: %s", blServiceErr.Error())
+	}
+
+	router := api.New(api.RouterArgs{
 		Logger:       a.Logger,
 		UserService:  userService,
 		OrderService: orderService,
+		BlService:    blService,
 		JWTSecretKey: []byte(a.Config.JWTUserSecret),
 	})
 
@@ -192,6 +199,17 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 		return sqlc.NewOrderRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(uow.RepositoryName(domain.OrderRepoName), orderRepoFactoryFn); regErr != nil {
+		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
+	}
+
+	// balance transaction repo
+	balanceTransactionRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
+		return sqlc.NewBalanceTransactionRepository(dbtx)
+	}
+	if regErr := unitOfWork.Register(
+		uow.RepositoryName(domain.BalanceTransactionRepoName),
+		balanceTransactionRepoFactoryFn,
+	); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 

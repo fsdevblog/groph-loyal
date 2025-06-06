@@ -15,6 +15,55 @@ func NewOrderRepository(conn sqlcgen.DBTX) domain.OrderRepository {
 	return &orderRepository{q: sqlcgen.New(conn)}
 }
 
+func (o *orderRepository) BatchUpdateWithAccrualData(
+	ctx context.Context,
+	updates []domain.OrderAccrualUpdateDTO,
+	fn domain.OrderBatchQueryRowDTO,
+) {
+	var data = make([]sqlcgen.Orders_UpdateWithAccrualDataParams, len(updates))
+	for i, update := range updates {
+		data[i] = sqlcgen.Orders_UpdateWithAccrualDataParams{
+			Status:  sqlcgen.OrderStatusType(update.Status),
+			Accrual: update.Accrual,
+			ID:      update.ID,
+		}
+	}
+	r := o.q.Orders_UpdateWithAccrualData(ctx, data)
+
+	r.QueryRow(func(i int, dbOrder sqlcgen.Order, err error) {
+		fn(i, convertOrderModel(dbOrder), convertErr(err, "updating order with id %d", updates[i].ID))
+	})
+}
+
+func (o *orderRepository) GetByStatuses(
+	ctx context.Context,
+	limit uint,
+	statuses []domain.OrderStatusType,
+) ([]domain.Order, error) {
+	var dbStatuses = make([]sqlcgen.OrderStatusType, len(statuses))
+	for i, status := range statuses {
+		dbStatuses[i] = sqlcgen.OrderStatusType(status)
+	}
+
+	safeLimit, safeLimitErr := safeConvertUintToInt32(limit)
+	if safeLimitErr != nil {
+		return nil, convertErr(safeLimitErr, "converting limit to int32")
+	}
+
+	dbOrders, err := o.q.Orders_GetByStatuses(ctx, sqlcgen.Orders_GetByStatusesParams{
+		Limit:    safeLimit,
+		Statuses: dbStatuses,
+	})
+	if err != nil {
+		return nil, convertErr(err, "getting orders by statuses %v:", statuses)
+	}
+	var orders = make([]domain.Order, len(dbOrders))
+	for i, order := range dbOrders {
+		orders[i] = *convertOrderModel(order)
+	}
+	return orders, nil
+}
+
 func (o *orderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	dbOrder, err := o.q.Orders_Create(ctx, sqlcgen.Orders_CreateParams{
 		UserID:    userID,
@@ -50,15 +99,13 @@ func (o *orderRepository) GetByUserID(ctx context.Context, userID int64) ([]doma
 }
 
 func convertOrderModel(dbModel sqlcgen.Order) *domain.Order {
-	accrual, _ := safeConvertInt32ToUint(dbModel.Accrual)
-
 	return &domain.Order{
 		ID:        dbModel.ID,
 		CreatedAt: dbModel.CreatedAt.Time,
 		UpdatedAt: dbModel.UpdatedAt.Time,
 		UserID:    dbModel.UserID,
 		OrderCode: dbModel.OrderCode,
-		Status:    domain.OrderStatus(dbModel.Status),
-		Accrual:   accrual,
+		Status:    domain.OrderStatusType(dbModel.Status),
+		Accrual:   dbModel.Accrual,
 	}
 }

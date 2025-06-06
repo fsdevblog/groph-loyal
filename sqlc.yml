@@ -8,3 +8,9 @@ sql:
         package: sqlcgen
         out: internal/repository/sqlc/sqlcgen
         sql_package: pgx/v5
+        overrides:
+          - db_type: "pg_catalog.numeric"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              package: "decimal"
+              type: "Decimal"

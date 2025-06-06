@@ -1,9 +1,9 @@
-package httptrt
+package api
 
 import (
 	"unicode"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/middlewares"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/middlewares"
 	"github.com/gin-gonic/gin"
 )
 

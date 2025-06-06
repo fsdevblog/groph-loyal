@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/pkg/uow"
+	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	repomocks "github.com/fsdevblog/groph-loyal/internal/domain/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
-	"github.com/fsdevblog/groph-loyal/internal/uow"
-	uowmocks "github.com/fsdevblog/groph-loyal/internal/uow/mocks"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 )

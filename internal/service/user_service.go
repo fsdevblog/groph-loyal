@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/httptrt/tokens"
+	"github.com/fsdevblog/groph-loyal/pkg/uow"
+
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/uow"
 )
 
 const JWTTokenExpire = 1 * time.Hour

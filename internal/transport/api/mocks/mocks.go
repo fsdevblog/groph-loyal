@@ -120,3 +120,41 @@ func (mr *MockOrderServicerMockRecorder) GetByUserID(ctx, userID interface{}) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockOrderServicer)(nil).GetByUserID), ctx, userID)
 }
+
+// MockBalanceServicer is a mock of BalanceServicer interface.
+type MockBalanceServicer struct {
+	ctrl     *gomock.Controller
+	recorder *MockBalanceServicerMockRecorder
+}
+
+// MockBalanceServicerMockRecorder is the mock recorder for MockBalanceServicer.
+type MockBalanceServicerMockRecorder struct {
+	mock *MockBalanceServicer
+}
+
+// NewMockBalanceServicer creates a new mock instance.
+func NewMockBalanceServicer(ctrl *gomock.Controller) *MockBalanceServicer {
+	mock := &MockBalanceServicer{ctrl: ctrl}
+	mock.recorder = &MockBalanceServicerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockBalanceServicer) EXPECT() *MockBalanceServicerMockRecorder {
+	return m.recorder
+}
+
+// GetUserBalance mocks base method.
+func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
+	ret0, _ := ret[0].(*domain.UserBalanceSumDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserBalance indicates an expected call of GetUserBalance.
+func (mr *MockBalanceServicerMockRecorder) GetUserBalance(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserBalance", reflect.TypeOf((*MockBalanceServicer)(nil).GetUserBalance), ctx, userID)
+}

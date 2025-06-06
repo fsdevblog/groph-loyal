@@ -88,6 +88,18 @@ func (m *MockOrderRepository) EXPECT() *MockOrderRepositoryMockRecorder {
 	return m.recorder
 }
 
+// BatchUpdateWithAccrualData mocks base method.
+func (m *MockOrderRepository) BatchUpdateWithAccrualData(ctx context.Context, updates []domain.OrderAccrualUpdateDTO, fn domain.OrderBatchQueryRowDTO) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BatchUpdateWithAccrualData", ctx, updates, fn)
+}
+
+// BatchUpdateWithAccrualData indicates an expected call of BatchUpdateWithAccrualData.
+func (mr *MockOrderRepositoryMockRecorder) BatchUpdateWithAccrualData(ctx, updates, fn interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchUpdateWithAccrualData", reflect.TypeOf((*MockOrderRepository)(nil).BatchUpdateWithAccrualData), ctx, updates, fn)
+}
+
 // CreateOrder mocks base method.
 func (m *MockOrderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	m.ctrl.T.Helper()
@@ -118,6 +130,21 @@ func (mr *MockOrderRepositoryMockRecorder) FindByOrderCode(ctx, orderCode interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByOrderCode", reflect.TypeOf((*MockOrderRepository)(nil).FindByOrderCode), ctx, orderCode)
 }
 
+// GetByStatuses mocks base method.
+func (m *MockOrderRepository) GetByStatuses(ctx context.Context, limit uint, statuses []domain.OrderStatusType) ([]domain.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByStatuses", ctx, limit, statuses)
+	ret0, _ := ret[0].([]domain.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByStatuses indicates an expected call of GetByStatuses.
+func (mr *MockOrderRepositoryMockRecorder) GetByStatuses(ctx, limit, statuses interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByStatuses", reflect.TypeOf((*MockOrderRepository)(nil).GetByStatuses), ctx, limit, statuses)
+}
+
 // GetByUserID mocks base method.
 func (m *MockOrderRepository) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
 	m.ctrl.T.Helper()
@@ -131,4 +158,54 @@ func (m *MockOrderRepository) GetByUserID(ctx context.Context, userID int64) ([]
 func (mr *MockOrderRepositoryMockRecorder) GetByUserID(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockOrderRepository)(nil).GetByUserID), ctx, userID)
+}
+
+// MockBalanceTransactionRepository is a mock of BalanceTransactionRepository interface.
+type MockBalanceTransactionRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockBalanceTransactionRepositoryMockRecorder
+}
+
+// MockBalanceTransactionRepositoryMockRecorder is the mock recorder for MockBalanceTransactionRepository.
+type MockBalanceTransactionRepositoryMockRecorder struct {
+	mock *MockBalanceTransactionRepository
+}
+
+// NewMockBalanceTransactionRepository creates a new mock instance.
+func NewMockBalanceTransactionRepository(ctrl *gomock.Controller) *MockBalanceTransactionRepository {
+	mock := &MockBalanceTransactionRepository{ctrl: ctrl}
+	mock.recorder = &MockBalanceTransactionRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockBalanceTransactionRepository) EXPECT() *MockBalanceTransactionRepositoryMockRecorder {
+	return m.recorder
+}
+
+// BatchCreate mocks base method.
+func (m *MockBalanceTransactionRepository) BatchCreate(ctx context.Context, transactions []domain.BalanceTransactionCreateDTO, fn domain.BalanceTransBatchQueryRowDTO) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BatchCreate", ctx, transactions, fn)
+}
+
+// BatchCreate indicates an expected call of BatchCreate.
+func (mr *MockBalanceTransactionRepositoryMockRecorder) BatchCreate(ctx, transactions, fn interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchCreate", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).BatchCreate), ctx, transactions, fn)
+}
+
+// GetUserBalance mocks base method.
+func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
+	ret0, _ := ret[0].(*domain.UserBalanceSumDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserBalance indicates an expected call of GetUserBalance.
+func (mr *MockBalanceTransactionRepositoryMockRecorder) GetUserBalance(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserBalance", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).GetUserBalance), ctx, userID)
 }
