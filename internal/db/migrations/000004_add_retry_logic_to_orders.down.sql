@@ -1,0 +1,1 @@
+ALTER TABLE orders DROP COLUMN attempts, DROP column last_attempt_at;
