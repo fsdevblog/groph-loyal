@@ -102,7 +102,7 @@ func (p *Processor) Run(ctx context.Context) {
 			if err := p.process(ctx); err != nil {
 				p.l.WithError(err).Error("process error")
 			}
-			time.Sleep(time.Second)
+			time.Sleep(100 * time.Microsecond)
 		}
 	}
 }
