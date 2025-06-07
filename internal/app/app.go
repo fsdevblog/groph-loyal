@@ -94,7 +94,8 @@ func (a *App) Run() error {
 		}
 	}()
 
-	processor := accrual.NewProcessor(orderService, a.Config.AccrualBaseURL, a.Logger)
+	accrualBaseURL := fmt.Sprintf("http://%s", a.Config.AccrualSystemAddress)
+	processor := accrual.NewProcessor(orderService, accrualBaseURL, a.Logger)
 	go func() {
 		processor.Run(notifyCtx)
 	}()

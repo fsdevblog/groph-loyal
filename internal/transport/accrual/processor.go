@@ -74,10 +74,9 @@ func NewProcessor(svs Servicer, apiBaseURL string, l *logrus.Logger, opts ...fun
 		opt(&options)
 	}
 
-	client := client.NewHTTPClient(apiBaseURL)
 	return &Processor{
 		svs:               svs,
-		client:            client,
+		client:            client.NewHTTPClient(apiBaseURL),
 		l:                 loggerEntry,
 		limitPerIteration: options.LimitPerIteration,
 		accrualWorkers:    options.AccrualWorkers,
@@ -102,7 +101,7 @@ func (p *Processor) Run(ctx context.Context) {
 			if err := p.process(ctx); err != nil {
 				p.l.WithError(err).Error("process error")
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(time.Second)
 		}
 	}
 }

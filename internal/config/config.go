@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	RunAddress     string `env:"RUN_ADDRESS"`
-	AccrualBaseURL string `env:"ACCRUAL_BASE_URL" envDefault:"http://localhost:8081"`
-	DatabaseDSN    string `env:"DATABASE_URI"`
-	MigrationsDir  string `env:"MIGRATIONS_DIR"`
-	JWTUserSecret  string `env:"JWT_USER_SECRET"  envDefault:"supersecretkey"`
+	RunAddress           string `env:"RUN_ADDRESS"`
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	DatabaseDSN          string `env:"DATABASE_URI"`
+	MigrationsDir        string `env:"MIGRATIONS_DIR"`
+	JWTUserSecret        string `env:"JWT_USER_SECRET" envDefault:"supersecretkey"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -44,17 +44,18 @@ func loadFlags(flagConfig *Config) {
 	flag.StringVar(&flagConfig.RunAddress, "a", "localhost:8080", "Run address in format host:port")
 	flag.StringVar(&flagConfig.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&flagConfig.MigrationsDir, "m", "internal/db/migrations", "Database migrations directory")
+	flag.StringVar(&flagConfig.AccrualSystemAddress, "f", "localhost:8081", "Accrual address in format host:port")
 
 	flag.Parse()
 }
 
 func mergeConfig(envConfig, flagsConfig *Config) *Config {
 	return &Config{
-		RunAddress:     defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
-		DatabaseDSN:    defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
-		MigrationsDir:  defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
-		AccrualBaseURL: envConfig.AccrualBaseURL,
-		JWTUserSecret:  envConfig.JWTUserSecret,
+		RunAddress:           defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
+		DatabaseDSN:          defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
+		MigrationsDir:        defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
+		AccrualSystemAddress: defaultIfBlank(envConfig.AccrualSystemAddress, flagsConfig.AccrualSystemAddress),
+		JWTUserSecret:        envConfig.JWTUserSecret,
 	}
 }
 

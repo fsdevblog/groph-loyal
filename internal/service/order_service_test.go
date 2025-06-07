@@ -170,10 +170,6 @@ func (s *OrderServiceTestSuite) TestCreate() {
 		Accrual:   decimal.NewFromInt(0),
 	}
 
-	// Мок транзакции uow.
-	s.mockTX.EXPECT().Get(uow.RepositoryName(repoargs.OrderRepoName)).
-		Return(s.mockOrderRepo, nil).MinTimes(1)
-
 	// Мок репозитория для валидного кода.
 	s.mockOrderRepo.EXPECT().
 		CreateOrder(gomock.Any(), userID, validOrderCode).
@@ -187,13 +183,6 @@ func (s *OrderServiceTestSuite) TestCreate() {
 	// Мок репозитория поиска существующего кода.
 	s.mockOrderRepo.EXPECT().FindByOrderCode(gomock.Any(), existingOrderCode).
 		Return(&existingOrder, nil)
-
-	// Мок uow.
-	s.mockUOW.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, fn func(context.Context, uow.TX) error) error {
-			return fn(ctx, s.mockTX)
-		}).MinTimes(1)
 
 	cases := []struct {
 		name        string
