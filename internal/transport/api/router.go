@@ -19,6 +19,7 @@ const (
 	OrdersRoute          = "/user/orders"
 	BalanceRoute         = "/user/balance"
 	BalanceWithdrawRoute = "/user/balance/withdraw"
+	WithdrawalsRoute     = "/user/withdrawals"
 )
 
 type RouterArgs struct {
@@ -52,5 +53,6 @@ func New(args RouterArgs) *gin.Engine {
 
 	api.GET(BalanceRoute, balanceHandler.Index)
 	api.POST(BalanceWithdrawRoute, balanceHandler.Withdraw)
+	api.GET(WithdrawalsRoute, balanceHandler.Withdrawals)
 	return r
 }

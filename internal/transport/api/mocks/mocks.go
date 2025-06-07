@@ -145,6 +145,21 @@ func (m *MockBalanceServicer) EXPECT() *MockBalanceServicerMockRecorder {
 	return m.recorder
 }
 
+// GetByDirection mocks base method.
+func (m *MockBalanceServicer) GetByDirection(ctx context.Context, userID int64, direction domain.DirectionType) ([]domain.BalanceTransaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByDirection", ctx, userID, direction)
+	ret0, _ := ret[0].([]domain.BalanceTransaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByDirection indicates an expected call of GetByDirection.
+func (mr *MockBalanceServicerMockRecorder) GetByDirection(ctx, userID, direction interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByDirection", reflect.TypeOf((*MockBalanceServicer)(nil).GetByDirection), ctx, userID, direction)
+}
+
 // GetUserBalance mocks base method.
 func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*service.UserBalance, error) {
 	m.ctrl.T.Helper()

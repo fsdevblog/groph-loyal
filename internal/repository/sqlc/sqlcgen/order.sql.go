@@ -107,7 +107,7 @@ const orders_GetForMonitoring = `-- name: Orders_GetForMonitoring :many
 SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders
 WHERE status IN ('NEW', 'PROCESSING')
   AND (last_attempt_at IS NULL OR
-       last_attempt_at + (INTERVAL '1 second' * power(1.3, attempts)) <= CURRENT_TIMESTAMP)
+       last_attempt_at + (INTERVAL '1 second' * power(1.1, attempts)) <= CURRENT_TIMESTAMP)
 ORDER BY attempts, created_at
 LIMIT $1
 `

@@ -42,9 +42,10 @@ func (u *UserRepository) FindUserByUsername(ctx context.Context, username string
 
 func convertUserModel(dbModel sqlcgen.User) *domain.User {
 	return &domain.User{
-		ID:        dbModel.ID,
-		CreatedAt: dbModel.CreatedAt.Time,
-		UpdatedAt: dbModel.UpdatedAt.Time,
-		Username:  dbModel.Username,
+		ID:                dbModel.ID,
+		CreatedAt:         dbModel.CreatedAt.Time,
+		UpdatedAt:         dbModel.UpdatedAt.Time,
+		Username:          dbModel.Username,
+		EncryptedPassword: dbModel.EncryptedPassword,
 	}
 }

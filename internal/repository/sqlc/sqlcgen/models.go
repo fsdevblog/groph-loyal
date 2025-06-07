@@ -104,6 +104,7 @@ type BalanceTransaction struct {
 	UpdatedAt pgtype.Timestamptz
 	UserID    int64
 	OrderID   int64
+	OrderCode string
 	Amount    decimal.Decimal
 	Direction BalanceTransactionType
 }

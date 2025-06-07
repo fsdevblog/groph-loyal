@@ -30,5 +30,6 @@ type BalanceTransaction struct {
 	UpdatedAt time.Time
 	UserID    int64
 	OrderID   int64
+	OrderCode string
 	Amount    decimal.Decimal
 }

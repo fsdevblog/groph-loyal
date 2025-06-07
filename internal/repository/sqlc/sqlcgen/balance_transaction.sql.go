@@ -13,15 +13,16 @@ import (
 
 const balanceTransaction_Create = `-- name: BalanceTransaction_Create :one
 INSERT INTO balance_transactions
-(user_id, order_id, amount, direction)
+(user_id, order_id, order_code, amount, direction)
 VALUES
-    ($1, $2, $3, $4::balance_transaction_type)
-RETURNING id, created_at, updated_at, user_id, order_id, amount, direction
+    ($1, $2, $3, $4, $5::balance_transaction_type)
+RETURNING id, created_at, updated_at, user_id, order_id, order_code, amount, direction
 `
 
 type BalanceTransaction_CreateParams struct {
 	UserID    int64
 	OrderID   int64
+	OrderCode string
 	Amount    decimal.Decimal
 	Direction BalanceTransactionType
 }
@@ -30,6 +31,7 @@ func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg BalanceTran
 	row := q.db.QueryRow(ctx, balanceTransaction_Create,
 		arg.UserID,
 		arg.OrderID,
+		arg.OrderCode,
 		arg.Amount,
 		arg.Direction,
 	)
@@ -40,10 +42,55 @@ func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg BalanceTran
 		&i.UpdatedAt,
 		&i.UserID,
 		&i.OrderID,
+		&i.OrderCode,
 		&i.Amount,
 		&i.Direction,
 	)
 	return i, err
+}
+
+const balanceTransaction_GetByDirection = `-- name: BalanceTransaction_GetByDirection :many
+SELECT id, created_at, updated_at, user_id, order_id, order_code, amount, direction
+FROM balance_transactions
+WHERE
+    user_id = $1
+  AND direction = $2::balance_transaction_type
+ORDER BY
+    created_at DESC
+`
+
+type BalanceTransaction_GetByDirectionParams struct {
+	UserID    int64
+	Direction BalanceTransactionType
+}
+
+func (q *Queries) BalanceTransaction_GetByDirection(ctx context.Context, arg BalanceTransaction_GetByDirectionParams) ([]BalanceTransaction, error) {
+	rows, err := q.db.Query(ctx, balanceTransaction_GetByDirection, arg.UserID, arg.Direction)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BalanceTransaction
+	for rows.Next() {
+		var i BalanceTransaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.OrderID,
+			&i.OrderCode,
+			&i.Amount,
+			&i.Direction,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const balanceTransaction_SumByUserID = `-- name: BalanceTransaction_SumByUserID :many

@@ -40,4 +40,9 @@ type BalanceTransactionRepository interface {
 	)
 	GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceSum, error)
 	Create(ctx context.Context, transaction repoargs.BalanceTransactionCreate) (*domain.BalanceTransaction, error)
+	GetByDirection(
+		ctx context.Context,
+		userID int64,
+		direction domain.DirectionType,
+	) ([]domain.BalanceTransaction, error)
 }

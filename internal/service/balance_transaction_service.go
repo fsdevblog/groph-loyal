@@ -91,6 +91,7 @@ func (b *BalanceTransactionService) Withdraw(
 		bl, createErr = blRepo.Create(c, repoargs.BalanceTransactionCreate{
 			UserID:    userID,
 			OrderID:   order.ID,
+			OrderCode: orderCode,
 			Direction: domain.DirectionCredit,
 			Amount:    amount,
 		})
@@ -105,4 +106,16 @@ func (b *BalanceTransactionService) Withdraw(
 	}
 
 	return bl, nil
+}
+
+func (b *BalanceTransactionService) GetByDirection(
+	ctx context.Context,
+	userID int64,
+	direction domain.DirectionType,
+) ([]domain.BalanceTransaction, error) {
+	t, err := b.blRepo.GetByDirection(ctx, userID, direction)
+	if err != nil {
+		return nil, fmt.Errorf("getting balance transactions by direction: %w", err)
+	}
+	return t, nil
 }

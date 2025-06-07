@@ -277,6 +277,21 @@ func (mr *MockBalanceTransactionRepositoryMockRecorder) Create(ctx, transaction 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).Create), ctx, transaction)
 }
 
+// GetByDirection mocks base method.
+func (m *MockBalanceTransactionRepository) GetByDirection(ctx context.Context, userID int64, direction domain.DirectionType) ([]domain.BalanceTransaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByDirection", ctx, userID, direction)
+	ret0, _ := ret[0].([]domain.BalanceTransaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByDirection indicates an expected call of GetByDirection.
+func (mr *MockBalanceTransactionRepositoryMockRecorder) GetByDirection(ctx, userID, direction interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByDirection", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).GetByDirection), ctx, userID, direction)
+}
+
 // GetUserBalance mocks base method.
 func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceSum, error) {
 	m.ctrl.T.Helper()

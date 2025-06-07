@@ -24,6 +24,7 @@ func (b *BalanceTransRepository) Create(
 		UserID:    transaction.UserID,
 		OrderID:   transaction.OrderID,
 		Amount:    transaction.Amount,
+		OrderCode: transaction.OrderCode,
 		Direction: sqlcgen.BalanceTransactionType(transaction.Direction),
 	})
 
@@ -43,6 +44,7 @@ func (b *BalanceTransRepository) BatchCreate(
 		params[i] = sqlcgen.BalanceTransaction_CreateBatchParams{
 			UserID:    transaction.UserID,
 			OrderID:   transaction.OrderID,
+			OrderCode: transaction.OrderCode,
 			Amount:    transaction.Amount,
 			Direction: sqlcgen.BalanceTransactionType(transaction.Direction),
 		}
@@ -72,6 +74,25 @@ func (b *BalanceTransRepository) GetUserBalance(
 	return sum, nil
 }
 
+func (b *BalanceTransRepository) GetByDirection(
+	ctx context.Context,
+	userID int64,
+	direction domain.DirectionType,
+) ([]domain.BalanceTransaction, error) {
+	dbTransactions, err := b.q.BalanceTransaction_GetByDirection(ctx, sqlcgen.BalanceTransaction_GetByDirectionParams{
+		UserID:    userID,
+		Direction: sqlcgen.BalanceTransactionType(direction),
+	})
+	if err != nil {
+		return nil, convertErr(err, "balance transactions")
+	}
+	var transactions = make([]domain.BalanceTransaction, len(dbTransactions))
+	for i, transaction := range dbTransactions {
+		transactions[i] = *convertBalanceTransactionModel(transaction)
+	}
+	return transactions, nil
+}
+
 func convertBalanceTransactionModel(model sqlcgen.BalanceTransaction) *domain.BalanceTransaction {
 	return &domain.BalanceTransaction{
 		ID:        model.ID,
@@ -79,6 +100,7 @@ func convertBalanceTransactionModel(model sqlcgen.BalanceTransaction) *domain.Ba
 		UpdatedAt: model.UpdatedAt.Time,
 		UserID:    model.UserID,
 		OrderID:   model.OrderID,
+		OrderCode: model.OrderCode,
 		Amount:    model.Amount,
 	}
 }

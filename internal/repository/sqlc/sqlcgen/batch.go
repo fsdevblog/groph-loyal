@@ -19,9 +19,9 @@ var (
 
 const balanceTransaction_CreateBatch = `-- name: BalanceTransaction_CreateBatch :batchexec
 INSERT INTO balance_transactions
-    (user_id, order_id, amount, direction)
+    (user_id, order_id, order_code, amount, direction)
 VALUES
-    ($1, $2, $3, $4::balance_transaction_type)
+    ($1, $2, $3, $4, $5::balance_transaction_type)
 `
 
 type BalanceTransaction_CreateBatchBatchResults struct {
@@ -33,6 +33,7 @@ type BalanceTransaction_CreateBatchBatchResults struct {
 type BalanceTransaction_CreateBatchParams struct {
 	UserID    int64
 	OrderID   int64
+	OrderCode string
 	Amount    decimal.Decimal
 	Direction BalanceTransactionType
 }
@@ -43,6 +44,7 @@ func (q *Queries) BalanceTransaction_CreateBatch(ctx context.Context, arg []Bala
 		vals := []interface{}{
 			a.UserID,
 			a.OrderID,
+			a.OrderCode,
 			a.Amount,
 			a.Direction,
 		}

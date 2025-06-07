@@ -30,4 +30,9 @@ type BalanceServicer interface {
 		orderCode string,
 		amount decimal.Decimal,
 	) (*domain.BalanceTransaction, error)
+	GetByDirection(
+		ctx context.Context,
+		userID int64,
+		direction domain.DirectionType,
+	) ([]domain.BalanceTransaction, error)
 }

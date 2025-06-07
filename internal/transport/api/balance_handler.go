@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -78,4 +79,32 @@ func (b *BalanceHandler) Withdraw(c *gin.Context) {
 	}
 
 	c.AbortWithStatus(http.StatusOK)
+}
+
+type WithdrawalsResponseItem struct {
+	OrderCode string  `json:"order"`
+	Accrual   float64 `json:"sum"`
+	CreatedAt string  `json:"processed_at"`
+}
+
+func (b *BalanceHandler) Withdrawals(c *gin.Context) {
+	currentUserID := getUserIDFromContext(c)
+	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
+	defer cancel()
+
+	transactions, err := b.svs.GetByDirection(reqCtx, currentUserID, domain.DirectionCredit)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+		return
+	}
+	response := make([]WithdrawalsResponseItem, len(transactions))
+	for i, transaction := range transactions {
+		response[i] = WithdrawalsResponseItem{
+			OrderCode: transaction.OrderCode,
+			Accrual:   transaction.Amount.InexactFloat64(),
+			CreatedAt: transaction.CreatedAt.Format(time.RFC3339),
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }

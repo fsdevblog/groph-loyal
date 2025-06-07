@@ -151,6 +151,7 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 			transDTO = append(transDTO, repoargs.BalanceTransactionCreate{
 				UserID:    order.UserID,
 				OrderID:   order.ID,
+				OrderCode: order.OrderCode,
 				Amount:    order.Accrual,
 				Direction: domain.DirectionDebit,
 			})
@@ -219,33 +220,21 @@ func (o *OrderService) updateOrdersWithAccrual(
 // в БД вернется ошибка *domain.DuplicateOrderError, во всех других случаях - domain.ErrUnknown.
 func (o *OrderService) Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	var order *domain.Order
-	txErr := o.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
-		if repoErr != nil {
-			return repoErr
-		}
 
-		var createErr error
-		order, createErr = repo.CreateOrder(c, userID, orderCode)
-
-		if createErr != nil {
-			// Если запись присутствует в БД. Получаем её и передаем в domain.DuplicateOrderError.
-			if errors.Is(createErr, domain.ErrDuplicateKey) {
-				existingOrder, existingOrderErr := repo.FindByOrderCode(c, orderCode)
-				if existingOrderErr != nil {
-					return existingOrderErr //nolint:wrapcheck
-				}
-				return &domain.DuplicateOrderError{Order: existingOrder}
+	order, createErr := o.orderRepo.CreateOrder(ctx, userID, orderCode)
+	if createErr != nil {
+		// Если запись присутствует в БД. Получаем её и передаем в domain.DuplicateOrderError.
+		if errors.Is(createErr, domain.ErrDuplicateKey) {
+			existingOrder, existingOrderErr := o.orderRepo.FindByOrderCode(ctx, orderCode)
+			if existingOrderErr != nil {
+				return nil, fmt.Errorf("creating order: %w", existingOrderErr)
 			}
-
-			return createErr //nolint:wrapcheck
+			return nil, &domain.DuplicateOrderError{Order: existingOrder}
 		}
-		return nil
-	})
 
-	if txErr != nil {
-		return nil, fmt.Errorf("creating order: %w", txErr)
+		return nil, fmt.Errorf("creating order: %w", createErr)
 	}
+
 	return order, nil
 }
 

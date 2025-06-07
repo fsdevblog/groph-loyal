@@ -8,6 +8,7 @@ import (
 type BalanceTransactionCreate struct {
 	UserID    int64
 	OrderID   int64
+	OrderCode string
 	Direction domain.DirectionType
 	Amount    decimal.Decimal
 }
