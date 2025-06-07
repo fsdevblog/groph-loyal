@@ -13,7 +13,7 @@ type Config struct {
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	DatabaseDSN          string `env:"DATABASE_URI"`
 	MigrationsDir        string `env:"MIGRATIONS_DIR"`
-	JWTUserSecret        string `env:"JWT_USER_SECRET" envDefault:"supersecretkey"`
+	JWTUserSecret        string `env:"JWT_USER_SECRET"        envDefault:"supersecretkey"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -44,7 +44,12 @@ func loadFlags(flagConfig *Config) {
 	flag.StringVar(&flagConfig.RunAddress, "a", "localhost:8080", "Run address in format host:port")
 	flag.StringVar(&flagConfig.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&flagConfig.MigrationsDir, "m", "internal/db/migrations", "Database migrations directory")
-	flag.StringVar(&flagConfig.AccrualSystemAddress, "f", "localhost:8081", "Accrual address in format host:port")
+	flag.StringVar(
+		&flagConfig.AccrualSystemAddress,
+		"f",
+		"http://localhost:8081",
+		"Accrual address in format scheme://host:port",
+	)
 
 	flag.Parse()
 }
