@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+	"github.com/shopspring/decimal"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
@@ -12,11 +15,11 @@ import (
 
 type OrderService struct {
 	uow       uow.UOW
-	orderRepo domain.OrderRepository
+	orderRepo OrderRepository
 }
 
 func NewOrderService(u uow.UOW) (*OrderService, error) {
-	orderRepo, err := uow.GetRepositoryAs[domain.OrderRepository](u, uow.RepositoryName(domain.OrderRepoName))
+	orderRepo, err := uow.GetRepositoryAs[OrderRepository](u, uow.RepositoryName(repoargs.OrderRepoName))
 	if err != nil {
 		return nil, err
 	}
@@ -28,20 +31,27 @@ func NewOrderService(u uow.UOW) (*OrderService, error) {
 
 // OrdersForAccrualMonitoring возвращает заказы подлежащие мониторингу начисления баллов лояльности.
 func (o *OrderService) OrdersForAccrualMonitoring(ctx context.Context, limit uint) ([]domain.Order, error) {
-	statuses := []domain.OrderStatusType{
-		domain.OrderStatusNew,
-		domain.OrderStatusProcessing,
-		domain.OrderStatusProcessing,
-	}
-
-	orders, err := o.orderRepo.GetByStatuses(ctx, limit, statuses)
+	orders, err := o.orderRepo.GetForMonitoring(ctx, limit)
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 	return orders, nil
 }
 
-// UpdateOrdersWithAccrual обновляет данные заказов с новыми статусами и суммами начисленных баллов.
+type UpdateAccrualArgs struct {
+	Error   error
+	OrderID int64
+	Status  domain.OrderStatusType
+	Accrual decimal.Decimal
+}
+
+type updateAccrualData struct {
+	OrderID int64
+	Status  domain.OrderStatusType
+	Accrual decimal.Decimal
+}
+
+// UpdateAccrual обновляет данные заказов с новыми статусами и суммами начисленных баллов.
 //
 // Параметры:
 //   - ctx: контекст для управления жизненным циклом
@@ -50,16 +60,21 @@ func (o *OrderService) OrdersForAccrualMonitoring(ctx context.Context, limit uin
 // Алгоритм работы:
 //  1. Обновляет данные заказов в базе данных
 //  2. Создает транзакции баланса для юзеров, которым предполагается начисление баллов лояльности.
-func (o *OrderService) UpdateOrdersWithAccrual(ctx context.Context, updates []domain.OrderAccrualUpdateDTO) error {
+func (o *OrderService) UpdateAccrual(
+	ctx context.Context,
+	updates []UpdateAccrualArgs,
+) error {
 	txErr := o.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		orders, updOrdersErr := o.updateOrdersWithAccrual(c, tx, updates)
-		if updOrdersErr != nil {
-			return updOrdersErr //nolint:wrapcheck
+		successData, failureIDs := o.splitSuccessFailureUpdates(updates)
+
+		if err := o.updateSuccessOrdersWithAccrual(c, tx, successData); err != nil {
+			return err //nolint:wrapcheck
 		}
 
-		if bTransErr := o.createBalanceTransactionsForOrders(c, tx, orders); bTransErr != nil {
-			return bTransErr
+		if err := o.incrementErrAttempts(c, tx, failureIDs); err != nil {
+			return err //nolint:wrapcheck
 		}
+
 		return nil
 	})
 
@@ -67,6 +82,51 @@ func (o *OrderService) UpdateOrdersWithAccrual(ctx context.Context, updates []do
 		return fmt.Errorf("updating orders with accrual: %w", txErr)
 	}
 	return nil
+}
+
+func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
+	if repoErr != nil {
+		return repoErr
+	}
+	return repo.IncrementErrAttempts(ctx, ids) //nolint:wrapcheck
+}
+
+func (o *OrderService) updateSuccessOrdersWithAccrual(ctx context.Context, tx uow.TX, data []updateAccrualData) error {
+	if len(data) == 0 {
+		return nil
+	}
+	orders, updOrdersErr := o.updateOrdersWithAccrual(ctx, tx, data)
+	if updOrdersErr != nil {
+		return updOrdersErr
+	}
+
+	if bTransErr := o.createBalanceTransactionsForOrders(ctx, tx, orders); bTransErr != nil {
+		return bTransErr
+	}
+	return nil
+}
+
+// splitSuccessFailureUpdates разбивает срез структур на 2 логические части. Одну для обновления в репозитории
+// а вторую - срез id, которые нужно пометить как ошибочные.
+func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) ([]updateAccrualData, []int64) {
+	var successData = make([]updateAccrualData, 0, len(updates))
+	var failureIDs = make([]int64, 0, len(updates))
+	for _, update := range updates {
+		if update.Error == nil {
+			successData = append(successData, updateAccrualData{
+				OrderID: update.OrderID,
+				Status:  update.Status,
+				Accrual: update.Accrual,
+			})
+		} else {
+			failureIDs = append(failureIDs, update.OrderID)
+		}
+	}
+	return successData, failureIDs
 }
 
 // createBalanceTransactionsForOrders создает записи в таблице balance_transactions для заказов со статусом
@@ -85,10 +145,10 @@ func (o *OrderService) UpdateOrdersWithAccrual(ctx context.Context, updates []do
 //
 // Возвращает ошибку. Если при батч запросе произошло несколько ошибок, вернется последняя ошибка.
 func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, tx uow.TX, orders []domain.Order) error {
-	var transDTO = make([]domain.BalanceTransactionCreateDTO, 0, len(orders))
+	var transDTO = make([]repoargs.BalanceTransactionCreate, 0, len(orders))
 	for _, order := range orders {
 		if order.Status == domain.OrderStatusProcessed {
-			transDTO = append(transDTO, domain.BalanceTransactionCreateDTO{
+			transDTO = append(transDTO, repoargs.BalanceTransactionCreate{
 				UserID:    order.UserID,
 				OrderID:   order.ID,
 				Amount:    order.Accrual,
@@ -102,7 +162,7 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 	}
 
 	balanceRepo, balanceRepoErr :=
-		uow.GetAs[domain.BalanceTransactionRepository](tx, uow.RepositoryName(domain.BalanceTransactionRepoName))
+		uow.GetAs[BalanceTransactionRepository](tx, uow.RepositoryName(repoargs.BalanceTransactionRepoName))
 
 	if balanceRepoErr != nil {
 		return balanceRepoErr //nolint:wrapcheck
@@ -126,18 +186,26 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 func (o *OrderService) updateOrdersWithAccrual(
 	ctx context.Context,
 	tx uow.TX,
-	updates []domain.OrderAccrualUpdateDTO,
+	updates []updateAccrualData,
 ) ([]domain.Order, error) {
-	repo, repoErr := uow.GetAs[domain.OrderRepository](tx, uow.RepositoryName(domain.OrderRepoName))
+	repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 	if repoErr != nil {
 		return nil, repoErr //nolint:wrapcheck
 	}
 
 	var orders = make([]domain.Order, len(updates))
 
+	var repoArgs = make([]repoargs.BatchUpdateWithAccrualData, len(updates))
+	for i, update := range updates {
+		repoArgs[i] = repoargs.BatchUpdateWithAccrualData{
+			ID:      update.OrderID,
+			Status:  update.Status,
+			Accrual: update.Accrual,
+		}
+	}
 	// updOrderErr будет хранить последнюю ошибку результата батч вставки. Мне кажется нет смысла ошибки объединять.
 	var updOrderErr error
-	repo.BatchUpdateWithAccrualData(ctx, updates, func(i int, dbOrder *domain.Order, err error) {
+	repo.BatchUpdateWithAccrualData(ctx, repoArgs, func(i int, dbOrder *domain.Order, err error) {
 		if err != nil {
 			updOrderErr = err
 			return
@@ -152,7 +220,7 @@ func (o *OrderService) updateOrdersWithAccrual(
 func (o *OrderService) Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	var order *domain.Order
 	txErr := o.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		repo, repoErr := uow.GetAs[domain.OrderRepository](tx, uow.RepositoryName(domain.OrderRepoName))
+		repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 		if repoErr != nil {
 			return repoErr
 		}

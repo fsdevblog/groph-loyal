@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	RunAddress    string `env:"RUN_ADDRESS"`
-	DatabaseDSN   string `env:"DATABASE_URI"`
-	MigrationsDir string `env:"MIGRATIONS_DIR"`
-	JWTUserSecret string `env:"JWT_USER_SECRET" envDefault:"supersecretkey"`
+	RunAddress     string `env:"RUN_ADDRESS"`
+	AccrualBaseURL string `env:"ACCRUAL_BASE_URL" envDefault:"http://localhost:8081"`
+	DatabaseDSN    string `env:"DATABASE_URI"`
+	MigrationsDir  string `env:"MIGRATIONS_DIR"`
+	JWTUserSecret  string `env:"JWT_USER_SECRET"  envDefault:"supersecretkey"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -49,10 +50,11 @@ func loadFlags(flagConfig *Config) {
 
 func mergeConfig(envConfig, flagsConfig *Config) *Config {
 	return &Config{
-		RunAddress:    defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
-		DatabaseDSN:   defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
-		MigrationsDir: defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
-		JWTUserSecret: envConfig.JWTUserSecret,
+		RunAddress:     defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
+		DatabaseDSN:    defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
+		MigrationsDir:  defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
+		AccrualBaseURL: envConfig.AccrualBaseURL,
+		JWTUserSecret:  envConfig.JWTUserSecret,
 	}
 }
 

@@ -1,4 +1,4 @@
-package accrual
+package client
 
 import (
 	"context"
@@ -6,13 +6,28 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/dto"
+	"github.com/shopspring/decimal"
 
 	"io"
 	"net/http"
 )
 
 const RouteOrderAccrual = "/api/orders/%s"
+
+type StatusType string
+
+const (
+	StatusRegistered StatusType = "REGISTERED"
+	StatusInvalid    StatusType = "INVALID"
+	StatusProcessing StatusType = "PROCESSING"
+	StatusProcessed  StatusType = "PROCESSED"
+)
+
+type Response struct {
+	Status    StatusType      `json:"status"`
+	OrderCode string          `json:"order"`
+	Accrual   decimal.Decimal `json:"accrual,omitempty"`
+}
 
 // HTTPClient является реализацией интерфейса Client для HTTP запросов к accrual.
 type HTTPClient struct {
@@ -27,14 +42,14 @@ func NewHTTPClient(baseURL string) HTTPClient {
 	}
 }
 
-// GetOrderAccrual получает информацию о начислении баллов для заказа. В случае ошибки возвращает или StatusCodeErr
-// или не типизированную ошибку.
+// GetOrderAccrual получает информацию о начислении баллов для заказа.
+// При ответе сервера со статусом отличным от http.StatusOK, возвращает ошибку StatusCodeErr
 //
 //nolint:nonamedreturns
 func (c HTTPClient) GetOrderAccrual(
 	ctx context.Context,
 	orderCode string,
-) (response *dto.OrderAccrualResponse, err error) {
+) (response *Response, err error) {
 	// Формируем URL запроса.
 	url := c.baseURL + fmt.Sprintf(RouteOrderAccrual, orderCode)
 
@@ -49,6 +64,7 @@ func (c HTTPClient) GetOrderAccrual(
 	if doErr != nil {
 		return nil, fmt.Errorf("do request: %s", doErr.Error())
 	}
+
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			err = errors.Join(err, closeErr)

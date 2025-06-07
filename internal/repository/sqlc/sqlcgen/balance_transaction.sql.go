@@ -47,7 +47,13 @@ func (q *Queries) BalanceTransaction_Create(ctx context.Context, arg BalanceTran
 }
 
 const balanceTransaction_SumByUserID = `-- name: BalanceTransaction_SumByUserID :many
-SELECT SUM(amount)::numeric AS sum, direction FROM balance_transactions WHERE user_id = $1 GROUP BY direction
+SELECT
+    SUM(amount)::numeric AS sum, direction
+FROM balance_transactions
+WHERE
+    user_id = $1
+GROUP
+    BY direction
 `
 
 type BalanceTransaction_SumByUserIDRow struct {

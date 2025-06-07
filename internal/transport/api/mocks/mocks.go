@@ -146,10 +146,10 @@ func (m *MockBalanceServicer) EXPECT() *MockBalanceServicerMockRecorder {
 }
 
 // GetUserBalance mocks base method.
-func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error) {
+func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*service.UserBalance, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
-	ret0, _ := ret[0].(*domain.UserBalanceSumDTO)
+	ret0, _ := ret[0].(*service.UserBalance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

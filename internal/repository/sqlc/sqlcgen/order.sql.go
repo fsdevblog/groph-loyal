@@ -16,7 +16,7 @@ INSERT INTO orders
     (user_id, order_code, status, accrual)
 VALUES
     ($1, $2, $3, $4)
-RETURNING id, created_at, updated_at, user_id, order_code, status, accrual
+RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at
 `
 
 type Orders_CreateParams struct {
@@ -42,12 +42,14 @@ func (q *Queries) Orders_Create(ctx context.Context, arg Orders_CreateParams) (O
 		&i.OrderCode,
 		&i.Status,
 		&i.Accrual,
+		&i.Attempts,
+		&i.LastAttemptAt,
 	)
 	return i, err
 }
 
 const orders_FindByOrderCode = `-- name: Orders_FindByOrderCode :one
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual FROM orders WHERE order_code = $1
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders WHERE order_code = $1
 `
 
 func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) (Order, error) {
@@ -61,49 +63,14 @@ func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) 
 		&i.OrderCode,
 		&i.Status,
 		&i.Accrual,
+		&i.Attempts,
+		&i.LastAttemptAt,
 	)
 	return i, err
 }
 
-const orders_GetByStatuses = `-- name: Orders_GetByStatuses :many
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual FROM orders WHERE status =ANY($1::order_status_type[]) LIMIT $2
-`
-
-type Orders_GetByStatusesParams struct {
-	Statuses []OrderStatusType
-	Limit    int32
-}
-
-func (q *Queries) Orders_GetByStatuses(ctx context.Context, arg Orders_GetByStatusesParams) ([]Order, error) {
-	rows, err := q.db.Query(ctx, orders_GetByStatuses, arg.Statuses, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Order
-	for rows.Next() {
-		var i Order
-		if err := rows.Scan(
-			&i.ID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.UserID,
-			&i.OrderCode,
-			&i.Status,
-			&i.Accrual,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const orders_GetByUserID = `-- name: Orders_GetByUserID :many
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order, error) {
@@ -123,6 +90,8 @@ func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order
 			&i.OrderCode,
 			&i.Status,
 			&i.Accrual,
+			&i.Attempts,
+			&i.LastAttemptAt,
 		); err != nil {
 			return nil, err
 		}
@@ -132,4 +101,55 @@ func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order
 		return nil, err
 	}
 	return items, nil
+}
+
+const orders_GetForMonitoring = `-- name: Orders_GetForMonitoring :many
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders
+WHERE status IN ('NEW', 'PROCESSING')
+  AND (last_attempt_at IS NULL OR
+       last_attempt_at + (INTERVAL '1 second' * power(1.3, attempts)) <= CURRENT_TIMESTAMP)
+ORDER BY attempts, created_at
+LIMIT $1
+`
+
+func (q *Queries) Orders_GetForMonitoring(ctx context.Context, Limit int32) ([]Order, error) {
+	rows, err := q.db.Query(ctx, orders_GetForMonitoring, Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.OrderCode,
+			&i.Status,
+			&i.Accrual,
+			&i.Attempts,
+			&i.LastAttemptAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const orders_IncrementAttempts = `-- name: Orders_IncrementAttempts :exec
+UPDATE orders
+SET attempts = attempts + 1,
+    last_attempt_at = CURRENT_TIMESTAMP
+WHERE id = ANY($1::int8[])
+`
+
+func (q *Queries) Orders_IncrementAttempts(ctx context.Context, dollar_1 []int64) error {
+	_, err := q.db.Exec(ctx, orders_IncrementAttempts, dollar_1)
+	return err
 }

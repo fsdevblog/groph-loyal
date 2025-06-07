@@ -23,7 +23,7 @@ type OrderServicer interface {
 }
 
 type BalanceServicer interface {
-	GetUserBalance(ctx context.Context, userID int64) (*domain.UserBalanceSumDTO, error)
+	GetUserBalance(ctx context.Context, userID int64) (*service.UserBalance, error)
 	Withdraw(
 		ctx context.Context,
 		userID int64,

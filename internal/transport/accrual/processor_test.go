@@ -3,6 +3,9 @@ package accrual
 import (
 	"context"
 
+	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
+
 	"github.com/shopspring/decimal"
 
 	"net/http"
@@ -10,7 +13,6 @@ import (
 	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/dto"
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -32,9 +34,9 @@ func (s *ProcessorTestSuite) SetupTest() {
 	s.mockService = mocks.NewMockServicer(s.ctrl)
 
 	logger := logrus.New()
-	logger.SetLevel(logrus.FatalLevel)
+	logger.SetLevel(logrus.DebugLevel)
 
-	s.processor = NewProcessor(s.mockService, logger)
+	s.processor = NewProcessor(s.mockService, "", logger)
 	s.processor.client = s.mockHTTPClient
 }
 
@@ -71,13 +73,25 @@ func (s *ProcessorTestSuite) TestProcess_ErrorAccrualReq() {
 		Return(testOrders, nil)
 
 	// Настраиваем мок-хттп-клиент для имитации ошибок при получении информации о начислениях.
-	testError := NewStatusCodeError(http.StatusInternalServerError)
+	internalError := client.NewStatusCodeError(http.StatusInternalServerError)
+	noContentError := client.NewStatusCodeError(http.StatusNoContent)
+
 	s.mockHTTPClient.EXPECT().
 		GetOrderAccrual(gomock.Any(), "ORDER-001").
-		Return(nil, testError)
+		Return(nil, internalError)
 	s.mockHTTPClient.EXPECT().
 		GetOrderAccrual(gomock.Any(), "ORDER-002").
-		Return(nil, testError)
+		Return(nil, noContentError)
+
+	// Настраиваем мок-сервис для обновления статуса заказа.
+	s.mockService.EXPECT().
+		UpdateAccrual(gomock.Any(), gomock.Any()).
+		Do(func(_ context.Context, updates []service.UpdateAccrualArgs) {
+			// Убеждаемся что ошибки были отправлены в сервис
+			s.Require().Len(updates, 2)
+			s.Error(updates[0].Error) //nolint:testifylint
+			s.Error(updates[1].Error) //nolint:testifylint
+		}).Return(nil)
 
 	ctx, cancel := context.WithTimeout(s.T().Context(), time.Second)
 	defer cancel()
@@ -95,7 +109,7 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 		{ID: 2, OrderCode: "ORDER-002", UserID: 101, Status: domain.OrderStatusNew},
 	}
 
-	accrualResponses := []*dto.OrderAccrualResponse{
+	accrualResponses := []*client.Response{
 		{OrderCode: "ORDER-001", Status: "PROCESSED", Accrual: decimal.NewFromInt(500)},
 		{OrderCode: "ORDER-002", Status: "PROCESSING"},
 	}
@@ -115,8 +129,8 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 
 	// Ожидаем вызов обновления с правильными данными.
 	s.mockService.EXPECT().
-		UpdateOrdersWithAccrual(gomock.Any(), gomock.Any()).
-		Do(func(_ context.Context, updates []domain.OrderAccrualUpdateDTO) {
+		UpdateAccrual(gomock.Any(), gomock.Any()).
+		Do(func(_ context.Context, updates []service.UpdateAccrualArgs) {
 			s.Require().Len(updates, 2)
 
 			// Проверяем обновления.
@@ -124,13 +138,13 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 			var foundSecondUpdate bool
 
 			for _, update := range updates {
-				if update.ID == 1 {
+				if update.OrderID == 1 {
 					s.Equal(domain.OrderStatusProcessed, update.Status)
 					s.Equal(decimal.NewFromInt(500), update.Accrual)
 					foundFirstUpdate = true
 				}
 
-				if update.ID == 2 {
+				if update.OrderID == 2 {
 					s.Equal(domain.OrderStatusProcessing, update.Status)
 					s.True(update.Accrual.IsZero())
 					foundSecondUpdate = true

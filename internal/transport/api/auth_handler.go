@@ -49,7 +49,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	user, jwtToken, createErr := h.userService.Register(ctx, service.RegisterUserArgs{
+	_, jwtToken, createErr := h.userService.Register(ctx, service.RegisterUserArgs{
 		Username: params.Username,
 		Password: params.Password,
 	})
@@ -62,12 +62,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	response := UserRegisterResponse{
-		ID:       user.ID,
-		Username: user.Username,
-	}
 	c.Header("Authorization", "Bearer "+jwtToken)
-	c.JSON(http.StatusOK, gin.H{"user": response})
+	c.AbortWithStatus(http.StatusOK)
 }
 
 type UserLoginParams struct {

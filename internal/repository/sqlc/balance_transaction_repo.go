@@ -4,22 +4,22 @@ import (
 	"context"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
 )
 
-type balanceTransactionRepository struct {
+type BalanceTransRepository struct {
 	q *sqlcgen.Queries
 }
 
-func NewBalanceTransactionRepository(conn sqlcgen.DBTX) domain.BalanceTransactionRepository {
-	return &balanceTransactionRepository{q: sqlcgen.New(conn)}
+func NewBalanceTransactionRepository(conn sqlcgen.DBTX) *BalanceTransRepository {
+	return &BalanceTransRepository{q: sqlcgen.New(conn)}
 }
 
-func (b *balanceTransactionRepository) Create(
+func (b *BalanceTransRepository) Create(
 	ctx context.Context,
-	transaction domain.BalanceTransactionCreateDTO,
+	transaction repoargs.BalanceTransactionCreate,
 ) (*domain.BalanceTransaction, error) {
-
 	dbTrans, err := b.q.BalanceTransaction_Create(ctx, sqlcgen.BalanceTransaction_CreateParams{
 		UserID:    transaction.UserID,
 		OrderID:   transaction.OrderID,
@@ -33,18 +33,18 @@ func (b *balanceTransactionRepository) Create(
 	return convertBalanceTransactionModel(dbTrans), nil
 }
 
-func (b *balanceTransactionRepository) BatchCreate(
+func (b *BalanceTransRepository) BatchCreate(
 	ctx context.Context,
-	transactions []domain.BalanceTransactionCreateDTO,
-	fn domain.BalanceTransBatchQueryRowDTO,
+	transactions []repoargs.BalanceTransactionCreate,
+	fn repoargs.BalanceTransBatchQueryRow,
 ) {
 	var params = make([]sqlcgen.BalanceTransaction_CreateBatchParams, len(transactions))
 	for i, transaction := range transactions {
-
 		params[i] = sqlcgen.BalanceTransaction_CreateBatchParams{
-			UserID:  transaction.UserID,
-			OrderID: transaction.OrderID,
-			Amount:  transaction.Amount,
+			UserID:    transaction.UserID,
+			OrderID:   transaction.OrderID,
+			Amount:    transaction.Amount,
+			Direction: sqlcgen.BalanceTransactionType(transaction.Direction),
 		}
 	}
 	r := b.q.BalanceTransaction_CreateBatch(ctx, params)
@@ -53,15 +53,15 @@ func (b *balanceTransactionRepository) BatchCreate(
 	})
 }
 
-func (b *balanceTransactionRepository) GetUserBalance(
+func (b *BalanceTransRepository) GetUserBalance(
 	ctx context.Context,
 	userID int64,
-) (*domain.UserBalanceSumDTO, error) {
+) (*repoargs.BalanceSum, error) {
 	stats, err := b.q.BalanceTransaction_SumByUserID(ctx, userID)
 	if err != nil {
 		return nil, convertErr(err, "getting balance sum by userID %d", userID)
 	}
-	var sum = new(domain.UserBalanceSumDTO)
+	var sum = new(repoargs.BalanceSum)
 	for _, row := range stats {
 		if row.Direction == sqlcgen.BalanceTransactionTypeCredit {
 			sum.CreditAmount = row.Sum

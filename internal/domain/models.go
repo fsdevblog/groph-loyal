@@ -7,11 +7,11 @@ import (
 )
 
 type User struct {
-	ID        int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Username  string
-	Password  string
+	ID                int64
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Username          string
+	EncryptedPassword string
 }
 
 type Order struct {

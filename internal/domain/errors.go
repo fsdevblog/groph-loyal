@@ -12,7 +12,6 @@ var (
 	ErrUnknown           = errors.New("unknown error")
 
 	ErrNotEnoughBalance = errors.New("not enough balance")
-	ErrOwnerConflict    = errors.New("owner conflict")
 )
 
 type DuplicateOrderError struct {

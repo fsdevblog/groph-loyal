@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
@@ -16,13 +18,13 @@ const JWTTokenExpire = 1 * time.Hour
 
 type UserService struct {
 	uow            uow.UOW
-	userRepo       domain.UserRepository
+	userRepo       UserRepository
 	psswdHasher    PasswordHasher
 	jwtTokenSecret []byte
 }
 
 func NewUserService(u uow.UOW, jwtTokenSecret []byte, psswdHasher PasswordHasher) (*UserService, error) {
-	userRepo, userRepoErr := uow.GetRepositoryAs[domain.UserRepository](u, uow.RepositoryName(domain.UserRepoName))
+	userRepo, userRepoErr := uow.GetRepositoryAs[UserRepository](u, uow.RepositoryName(repoargs.UserRepoName))
 	if userRepoErr != nil {
 		return nil, userRepoErr
 	}
@@ -51,11 +53,11 @@ func (s *UserService) Register(ctx context.Context, args RegisterUserArgs) (*dom
 	var token string
 	txErr := s.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
 		var userErr, tokenErr error
-		userRepo, userRepoErr := uow.GetAs[domain.UserRepository](tx, uow.RepositoryName(domain.UserRepoName))
+		userRepo, userRepoErr := uow.GetAs[UserRepository](tx, uow.RepositoryName(repoargs.UserRepoName))
 		if userRepoErr != nil {
 			return userRepoErr //nolint:wrapcheck
 		}
-		user, userErr = userRepo.CreateUser(c, domain.User{
+		user, userErr = userRepo.CreateUser(c, repoargs.CreateUser{
 			Username: args.Username,
 			Password: password,
 		})
@@ -91,7 +93,7 @@ func (s *UserService) Login(ctx context.Context, args LoginUserArgs) (*domain.Us
 		return nil, "", fmt.Errorf("logging in user: %w", userErr)
 	}
 
-	if !s.psswdHasher.ComparePassword(args.Password, user.Password) {
+	if !s.psswdHasher.ComparePassword(args.Password, user.EncryptedPassword) {
 		return nil, "", domain.ErrPasswordMissMatch
 	}
 	token, tokenErr := tokens.GenerateUserJWT(user.ID, JWTTokenExpire, s.jwtTokenSecret)

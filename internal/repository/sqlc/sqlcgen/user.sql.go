@@ -11,31 +11,31 @@ import (
 
 const users_Create = `-- name: Users_Create :one
 INSERT INTO users
-    (username, password)
+(username, encrypted_password)
 VALUES ($1, $2)
-RETURNING id, created_at, updated_at, username, password
+RETURNING id, created_at, updated_at, username, encrypted_password
 `
 
 type Users_CreateParams struct {
-	Username string
-	Password string
+	Username          string
+	EncryptedPassword string
 }
 
 func (q *Queries) Users_Create(ctx context.Context, arg Users_CreateParams) (User, error) {
-	row := q.db.QueryRow(ctx, users_Create, arg.Username, arg.Password)
+	row := q.db.QueryRow(ctx, users_Create, arg.Username, arg.EncryptedPassword)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Username,
-		&i.Password,
+		&i.EncryptedPassword,
 	)
 	return i, err
 }
 
 const users_FindByUsername = `-- name: Users_FindByUsername :one
-SELECT id, created_at, updated_at, username, password FROM users WHERE username = $1
+SELECT id, created_at, updated_at, username, encrypted_password FROM users WHERE username = $1
 `
 
 func (q *Queries) Users_FindByUsername(ctx context.Context, username string) (User, error) {
@@ -46,7 +46,7 @@ func (q *Queries) Users_FindByUsername(ctx context.Context, username string) (Us
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Username,
-		&i.Password,
+		&i.EncryptedPassword,
 	)
 	return i, err
 }

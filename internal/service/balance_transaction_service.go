@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
@@ -12,12 +14,12 @@ import (
 
 type BalanceTransactionService struct {
 	uow    uow.UOW
-	blRepo domain.BalanceTransactionRepository
+	blRepo BalanceTransactionRepository
 }
 
 func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error) {
-	rName := uow.RepositoryName(domain.BalanceTransactionRepoName)
-	blRepo, blRepoErr := uow.GetRepositoryAs[domain.BalanceTransactionRepository](u, rName)
+	rName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
+	blRepo, blRepoErr := uow.GetRepositoryAs[BalanceTransactionRepository](u, rName)
 	if blRepoErr != nil {
 		return nil, blRepoErr
 	}
@@ -27,31 +29,49 @@ func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error)
 	}, nil
 }
 
+type UserBalance struct {
+	UserID    int64
+	Current   decimal.Decimal
+	Withdrawn decimal.Decimal
+}
+
 func (b *BalanceTransactionService) GetUserBalance(
 	ctx context.Context,
 	userID int64,
-) (*domain.UserBalanceSumDTO, error) {
+) (*UserBalance, error) {
 	balance, err := b.blRepo.GetUserBalance(ctx, userID)
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
-	balance.DebitAmount = balance.DebitAmount.Sub(balance.CreditAmount)
-	return balance, nil
+	return &UserBalance{
+		UserID:    userID,
+		Current:   balance.DebitAmount.Sub(balance.CreditAmount),
+		Withdrawn: balance.CreditAmount,
+	}, nil
 }
 
+// Withdraw создает ордер и в счет оплаты которого списываются балы. Затем собственно списывает.
 func (b *BalanceTransactionService) Withdraw(
 	ctx context.Context,
 	userID int64,
 	orderCode string,
 	amount decimal.Decimal,
 ) (*domain.BalanceTransaction, error) {
-
 	var bl *domain.BalanceTransaction
 	txErr := b.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		// проверяем баланс юзера
+		orderRepo, orderRepoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 
-		blRepo, blRepoErr :=
-			uow.GetAs[domain.BalanceTransactionRepository](tx, uow.RepositoryName(domain.BalanceTransactionRepoName))
+		if orderRepoErr != nil {
+			return orderRepoErr //nolint:wrapcheck
+		}
+		order, orderErr := orderRepo.CreateOrder(c, userID, orderCode)
+		if orderErr != nil {
+			return orderErr //nolint:wrapcheck
+		}
+
+		// проверяем баланс юзера
+		blRName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
+		blRepo, blRepoErr := uow.GetAs[BalanceTransactionRepository](tx, blRName)
 
 		if blRepoErr != nil {
 			return blRepoErr //nolint:wrapcheck
@@ -66,23 +86,9 @@ func (b *BalanceTransactionService) Withdraw(
 			return domain.ErrNotEnoughBalance
 		}
 
-		// получаем ID ордера
-		orderRepo, orderRepoErr := uow.GetAs[domain.OrderRepository](tx, uow.RepositoryName(domain.OrderRepoName))
-		if orderRepoErr != nil {
-			return orderRepoErr //nolint:wrapcheck
-		}
-		order, orderErr := orderRepo.FindByOrderCode(c, orderCode)
-		if orderErr != nil {
-			return orderErr //nolint:wrapcheck
-		}
-
-		if order.UserID != userID {
-			return domain.ErrOwnerConflict
-		}
-
 		// создаем транзакцию credit.
 		var createErr error
-		bl, createErr = blRepo.Create(c, domain.BalanceTransactionCreateDTO{
+		bl, createErr = blRepo.Create(c, repoargs.BalanceTransactionCreate{
 			UserID:    userID,
 			OrderID:   order.ID,
 			Direction: domain.DirectionCredit,

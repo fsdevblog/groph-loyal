@@ -74,7 +74,7 @@ func (b *BalanceTransaction_CreateBatchBatchResults) Close() error {
 }
 
 const orders_UpdateWithAccrualData = `-- name: Orders_UpdateWithAccrualData :batchone
-UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual
+UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at
 `
 
 type Orders_UpdateWithAccrualDataBatchResults struct {
@@ -122,6 +122,8 @@ func (b *Orders_UpdateWithAccrualDataBatchResults) QueryRow(f func(int, Order, e
 			&i.OrderCode,
 			&i.Status,
 			&i.Accrual,
+			&i.Attempts,
+			&i.LastAttemptAt,
 		)
 		if f != nil {
 			f(t, i, err)

@@ -5,12 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
 	"github.com/shopspring/decimal"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	repomocks "github.com/fsdevblog/groph-loyal/internal/domain/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,8 +22,8 @@ type OrderServiceTestSuite struct {
 	mockCtrl        *gomock.Controller
 	mockUOW         *uowmocks.MockUOW
 	mockTX          *uowmocks.MockTX
-	mockBalanceRepo *repomocks.MockBalanceTransactionRepository
-	mockOrderRepo   *repomocks.MockOrderRepository
+	mockBalanceRepo *mocks.MockBalanceTransactionRepository
+	mockOrderRepo   *mocks.MockOrderRepository
 	orderService    *OrderService
 }
 
@@ -32,12 +34,12 @@ func TestOrderServiceSuite(t *testing.T) {
 func (s *OrderServiceTestSuite) SetupTest() {
 	s.mockCtrl = gomock.NewController(s.T())
 	s.mockUOW = uowmocks.NewMockUOW(s.mockCtrl)
-	s.mockOrderRepo = repomocks.NewMockOrderRepository(s.mockCtrl)
+	s.mockOrderRepo = mocks.NewMockOrderRepository(s.mockCtrl)
 	s.mockTX = uowmocks.NewMockTX(s.mockCtrl)
-	s.mockBalanceRepo = repomocks.NewMockBalanceTransactionRepository(s.mockCtrl)
+	s.mockBalanceRepo = mocks.NewMockBalanceTransactionRepository(s.mockCtrl)
 
 	// Мок получения репозитория из uow. Выполняется в инициализации сервиса.
-	s.mockUOW.EXPECT().GetRepository(uow.RepositoryName(domain.OrderRepoName)).
+	s.mockUOW.EXPECT().GetRepository(uow.RepositoryName(repoargs.OrderRepoName)).
 		Return(s.mockOrderRepo, nil).AnyTimes()
 
 	// Инициализация сервиса.
@@ -50,9 +52,9 @@ func (s *OrderServiceTestSuite) TearDownTest() {
 	s.mockCtrl.Finish()
 }
 
-func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
-	// Подготовка тестовых данных
-	updates := []domain.OrderAccrualUpdateDTO{
+func (s *OrderServiceTestSuite) TestUpdateAccrual() {
+	// Подготовка тестовых данных для репозитория
+	updates := []repoargs.BatchUpdateWithAccrualData{
 		{
 			ID:      1,
 			Status:  domain.OrderStatusProcessed,
@@ -63,6 +65,16 @@ func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
 			Status:  domain.OrderStatusProcessing,
 			Accrual: decimal.Zero,
 		},
+	}
+
+	var serviceUpdates = make([]UpdateAccrualArgs, len(updates))
+	// конвертирование тестовых данных для сервисного слоя
+	for i, update := range updates {
+		serviceUpdates[i] = UpdateAccrualArgs{
+			OrderID: update.ID,
+			Status:  update.Status,
+			Accrual: update.Accrual,
+		}
 	}
 
 	updatedOrders := []domain.Order{
@@ -88,17 +100,17 @@ func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
 
 	// Настраиваем мок для получения репозитория из транзакции
 	s.mockTX.EXPECT().
-		Get(uow.RepositoryName(domain.OrderRepoName)).
+		Get(uow.RepositoryName(repoargs.OrderRepoName)).
 		Return(s.mockOrderRepo, nil)
 
 	s.mockTX.EXPECT().
-		Get(uow.RepositoryName(domain.BalanceTransactionRepoName)).
+		Get(uow.RepositoryName(repoargs.BalanceTransactionRepoName)).
 		Return(s.mockBalanceRepo, nil)
 
 	// Настраиваем мок для batch обновления заказов
 	s.mockOrderRepo.EXPECT().
 		BatchUpdateWithAccrualData(gomock.Any(), updates, gomock.Any()).
-		DoAndReturn(func(_ context.Context, _ []domain.OrderAccrualUpdateDTO, fn domain.OrderBatchQueryRowDTO) {
+		DoAndReturn(func(_ context.Context, _ []repoargs.BatchUpdateWithAccrualData, fn repoargs.OrderBatchQueryRow) {
 			for i, order := range updatedOrders {
 				fn(i, &order, nil)
 			}
@@ -109,8 +121,8 @@ func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
 		BatchCreate(gomock.Any(), gomock.Any(), gomock.Any()).
 		Do(func(
 			_ context.Context,
-			btDTO []domain.BalanceTransactionCreateDTO,
-			_ domain.BalanceTransBatchQueryRowDTO,
+			btDTO []repoargs.BalanceTransactionCreate,
+			_ repoargs.BalanceTransBatchQueryRow,
 		) {
 			// проверяем что в мок попали нужные данные.
 			s.Len(btDTO, 1) // только одна запись с нужным статусом.
@@ -127,7 +139,7 @@ func (s *OrderServiceTestSuite) TestUpdateOrdersWithAccrual() {
 		})
 
 	// Выполняем тестируемый метод
-	err := s.orderService.UpdateOrdersWithAccrual(context.Background(), updates)
+	err := s.orderService.UpdateAccrual(context.Background(), serviceUpdates)
 
 	// Проверяем результат
 	s.NoError(err)
@@ -159,7 +171,7 @@ func (s *OrderServiceTestSuite) TestCreate() {
 	}
 
 	// Мок транзакции uow.
-	s.mockTX.EXPECT().Get(uow.RepositoryName(domain.OrderRepoName)).
+	s.mockTX.EXPECT().Get(uow.RepositoryName(repoargs.OrderRepoName)).
 		Return(s.mockOrderRepo, nil).MinTimes(1)
 
 	// Мок репозитория для валидного кода.

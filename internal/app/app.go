@@ -7,12 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+
+	"github.com/fsdevblog/groph-loyal/internal/transport/accrual"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 
 	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
-	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api"
@@ -89,6 +92,11 @@ func (a *App) Run() error {
 		if runErr := router.Run(a.Config.RunAddress); runErr != nil {
 			errChan <- runErr
 		}
+	}()
+
+	processor := accrual.NewProcessor(orderService, a.Config.AccrualBaseURL, a.Logger)
+	go func() {
+		processor.Run(notifyCtx)
 	}()
 
 	select {
@@ -190,7 +198,7 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	userRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
 		return sqlc.NewUserRepository(dbtx)
 	}
-	if regErr := unitOfWork.Register(uow.RepositoryName(domain.UserRepoName), userRepoFactoryFn); regErr != nil {
+	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.UserRepoName), userRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 
@@ -198,7 +206,7 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	orderRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
 		return sqlc.NewOrderRepository(dbtx)
 	}
-	if regErr := unitOfWork.Register(uow.RepositoryName(domain.OrderRepoName), orderRepoFactoryFn); regErr != nil {
+	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.OrderRepoName), orderRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 
@@ -207,7 +215,7 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 		return sqlc.NewBalanceTransactionRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(
-		uow.RepositoryName(domain.BalanceTransactionRepoName),
+		uow.RepositoryName(repoargs.BalanceTransactionRepoName),
 		balanceTransactionRepoFactoryFn,
 	); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())

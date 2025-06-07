@@ -1,6 +1,6 @@
 -- name: Users_Create :one
 INSERT INTO users
-    (username, password)
+(username, encrypted_password)
 VALUES ($1, $2)
 RETURNING *;
 

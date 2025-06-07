@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/dto"
+	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
+	"github.com/shopspring/decimal"
 
 	"github.com/sirupsen/logrus"
 
@@ -31,14 +33,6 @@ const (
 	// defaultAccrualWorkers устанавливает количество параллельных обработчиков для запросов начислений.
 	defaultAccrualWorkers uint = 10
 )
-
-// OrderAccrualWorkerResult представляет результат работы воркера по запросу начислений.
-// Содержит информацию о заказе, возможной ошибке и данные о начислении.
-type OrderAccrualWorkerResult struct {
-	Error                     error // Ошибка, возникшая при запросе данных начисления
-	OrderID                   int64 // Идентификатор заказа
-	*dto.OrderAccrualResponse       // Встроенные данные ответа по начислению
-}
 
 // Processor управляет процессом получения и обновления информации о начислениях баллов за заказы.
 // Работает в фоновом режиме, обрабатывая заказы пакетами и взаимодействуя с внешним API начислений.
@@ -65,7 +59,7 @@ type ProcessorOptions struct {
 //   - opts: функциональные опции для настройки процессора
 //
 // Возвращает настроенный экземпляр процессора.
-func NewProcessor(svs Servicer, l *logrus.Logger, opts ...func(*ProcessorOptions)) *Processor {
+func NewProcessor(svs Servicer, apiBaseURL string, l *logrus.Logger, opts ...func(*ProcessorOptions)) *Processor {
 	options := ProcessorOptions{
 		LimitPerIteration: defaultLimitPerIteration,
 		AccrualWorkers:    defaultAccrualWorkers,
@@ -80,8 +74,10 @@ func NewProcessor(svs Servicer, l *logrus.Logger, opts ...func(*ProcessorOptions
 		opt(&options)
 	}
 
+	client := client.NewHTTPClient(apiBaseURL)
 	return &Processor{
 		svs:               svs,
+		client:            client,
 		l:                 loggerEntry,
 		limitPerIteration: options.LimitPerIteration,
 		accrualWorkers:    options.AccrualWorkers,
@@ -135,11 +131,35 @@ func (p *Processor) process(ctx context.Context) error {
 		return nil
 	}
 
-	if updErr := p.svs.UpdateOrdersWithAccrual(ctx, results); updErr != nil {
+	var updateArgs = make([]service.UpdateAccrualArgs, 0, len(results))
+	for _, result := range results {
+		// согласно ТЗ статус REGISTERED не поддерживается системой лояльности, поэтому его мы пропускаем,
+		// и воркер его обработает при следующей попытке.
+		if result.Status == client.StatusRegistered {
+			continue
+		}
+		updateArgs = append(updateArgs, service.UpdateAccrualArgs{
+			Error:   result.Error,
+			OrderID: result.OrderID,
+			Status:  domain.OrderStatusType(result.Status),
+			Accrual: result.Accrual,
+		})
+	}
+
+	if updErr := p.svs.UpdateAccrual(ctx, updateArgs); updErr != nil {
 		return fmt.Errorf("process: %s", updErr.Error())
 	}
 
 	return nil
+}
+
+// workerResult представляет результат работы воркера по запросу начислений.
+// Содержит информацию о заказе, возможной ошибке и данные о начислении.
+type workerResult struct {
+	OrderID int64             // Идентификатор заказа. Пуст если есть ошибка
+	Error   error             // Ошибка, возникшая при запросе данных начисления
+	Status  client.StatusType // Статус заказа. Пустая строка если ошибка
+	Accrual decimal.Decimal   // Сумма к начислению. Zero если ошибка
 }
 
 // runWorkers запускает несколько параллельных воркеров для получения данных о начислениях
@@ -153,10 +173,10 @@ func (p *Processor) process(ctx context.Context) error {
 //
 // Параметры:
 //   - ctx: контекст для управления жизненным циклом воркеров
-//   - orders: список заказов для обработки
+//   - orders: список заказов для обработки.
 //
-// Возвращает массив структур с данными для обновления заказов.
-func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []domain.OrderAccrualUpdateDTO {
+// Возвращает срез структур с данными для обновления заказов.
+func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []workerResult {
 	var taskCh = make(chan *domain.Order, len(orders))
 
 	for _, order := range orders {
@@ -167,7 +187,7 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []dom
 	wg := new(sync.WaitGroup)
 	wg.Add(int(p.accrualWorkers)) // nolint:gosec
 
-	var resultCh = make(chan *OrderAccrualWorkerResult, len(orders))
+	var resultCh = make(chan *workerResult, len(orders))
 
 	for range p.accrualWorkers {
 		p.worker(ctx, wg, taskCh, resultCh)
@@ -176,20 +196,24 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []dom
 
 	close(resultCh)
 
-	var results = make([]domain.OrderAccrualUpdateDTO, 0, len(orders))
+	var results = make([]workerResult, 0, len(orders))
 	for result := range resultCh {
 		if result.Error != nil {
 			p.l.WithError(result.Error).
 				Errorf("get accrual for order %d", result.OrderID)
-			continue
+			results = append(results, workerResult{
+				OrderID: result.OrderID,
+				Error:   result.Error,
+			})
+		} else {
+			results = append(results, workerResult{
+				OrderID: result.OrderID,
+				Status:  result.Status,
+				Accrual: result.Accrual,
+				Error:   nil,
+			})
 		}
-		results = append(results, domain.OrderAccrualUpdateDTO{
-			ID:      result.OrderID,
-			Status:  result.Status,
-			Accrual: result.Accrual,
-		})
 	}
-
 	return results
 }
 
@@ -206,7 +230,7 @@ func (p *Processor) worker(
 	ctx context.Context,
 	wg *sync.WaitGroup,
 	taskCh <-chan *domain.Order,
-	resultCh chan<- *OrderAccrualWorkerResult,
+	resultCh chan<- *workerResult,
 ) {
 	defer wg.Done()
 	for {
@@ -222,11 +246,18 @@ func (p *Processor) worker(
 			reqCtx, cancel := context.WithTimeout(ctx, defaultAPITimeout)
 			resp, err := p.client.GetOrderAccrual(reqCtx, task.OrderCode)
 			cancel()
+			if err != nil {
+				resultCh <- &workerResult{
+					OrderID: task.ID,
+					Error:   err,
+				}
+				return
+			}
 
-			resultCh <- &OrderAccrualWorkerResult{
-				OrderID:              task.ID,
-				Error:                err,
-				OrderAccrualResponse: resp,
+			resultCh <- &workerResult{
+				OrderID: task.ID,
+				Status:  resp.Status,
+				Accrual: resp.Accrual,
 			}
 		}
 	}

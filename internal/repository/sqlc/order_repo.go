@@ -4,21 +4,22 @@ import (
 	"context"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
 )
 
-type orderRepository struct {
+type OrderRepository struct {
 	q *sqlcgen.Queries
 }
 
-func NewOrderRepository(conn sqlcgen.DBTX) domain.OrderRepository {
-	return &orderRepository{q: sqlcgen.New(conn)}
+func NewOrderRepository(conn sqlcgen.DBTX) *OrderRepository {
+	return &OrderRepository{q: sqlcgen.New(conn)}
 }
 
-func (o *orderRepository) BatchUpdateWithAccrualData(
+func (o *OrderRepository) BatchUpdateWithAccrualData(
 	ctx context.Context,
-	updates []domain.OrderAccrualUpdateDTO,
-	fn domain.OrderBatchQueryRowDTO,
+	updates []repoargs.BatchUpdateWithAccrualData,
+	fn repoargs.OrderBatchQueryRow,
 ) {
 	var data = make([]sqlcgen.Orders_UpdateWithAccrualDataParams, len(updates))
 	for i, update := range updates {
@@ -35,27 +36,18 @@ func (o *orderRepository) BatchUpdateWithAccrualData(
 	})
 }
 
-func (o *orderRepository) GetByStatuses(
+func (o *OrderRepository) GetForMonitoring(
 	ctx context.Context,
 	limit uint,
-	statuses []domain.OrderStatusType,
 ) ([]domain.Order, error) {
-	var dbStatuses = make([]sqlcgen.OrderStatusType, len(statuses))
-	for i, status := range statuses {
-		dbStatuses[i] = sqlcgen.OrderStatusType(status)
-	}
-
 	safeLimit, safeLimitErr := safeConvertUintToInt32(limit)
 	if safeLimitErr != nil {
 		return nil, convertErr(safeLimitErr, "converting limit to int32")
 	}
 
-	dbOrders, err := o.q.Orders_GetByStatuses(ctx, sqlcgen.Orders_GetByStatusesParams{
-		Limit:    safeLimit,
-		Statuses: dbStatuses,
-	})
+	dbOrders, err := o.q.Orders_GetForMonitoring(ctx, safeLimit)
 	if err != nil {
-		return nil, convertErr(err, "getting orders by statuses %v:", statuses)
+		return nil, convertErr(err, "getting orders for monitoring")
 	}
 	var orders = make([]domain.Order, len(dbOrders))
 	for i, order := range dbOrders {
@@ -64,7 +56,14 @@ func (o *orderRepository) GetByStatuses(
 	return orders, nil
 }
 
-func (o *orderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
+func (o *OrderRepository) IncrementErrAttempts(ctx context.Context, orderIDs []int64) error {
+	if err := o.q.Orders_IncrementAttempts(ctx, orderIDs); err != nil {
+		return convertErr(err, "incrementing err attempts for orders with ids `%v`", orderIDs)
+	}
+	return nil
+}
+
+func (o *OrderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	dbOrder, err := o.q.Orders_Create(ctx, sqlcgen.Orders_CreateParams{
 		UserID:    userID,
 		OrderCode: orderCode,
@@ -77,7 +76,7 @@ func (o *orderRepository) CreateOrder(ctx context.Context, userID int64, orderCo
 	return convertOrderModel(dbOrder), nil
 }
 
-func (o *orderRepository) FindByOrderCode(ctx context.Context, orderCode string) (*domain.Order, error) {
+func (o *OrderRepository) FindByOrderCode(ctx context.Context, orderCode string) (*domain.Order, error) {
 	dbOrder, err := o.q.Orders_FindByOrderCode(ctx, orderCode)
 	if err != nil {
 		return nil, convertErr(err, "finding order by code `%s`", orderCode)
@@ -86,7 +85,7 @@ func (o *orderRepository) FindByOrderCode(ctx context.Context, orderCode string)
 }
 
 // GetByUserID Возвращает список заказов по id юзера, отсортированный по дате создания по убыванию.
-func (o *orderRepository) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
+func (o *OrderRepository) GetByUserID(ctx context.Context, userID int64) ([]domain.Order, error) {
 	dbOrders, err := o.q.Orders_GetByUserID(ctx, userID)
 	if err != nil {
 		return nil, convertErr(err, "getting orders by userID `%d`", userID)

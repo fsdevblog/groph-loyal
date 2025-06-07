@@ -109,19 +109,21 @@ type BalanceTransaction struct {
 }
 
 type Order struct {
-	ID        int64
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	UserID    int64
-	OrderCode string
-	Status    OrderStatusType
-	Accrual   decimal.Decimal
+	ID            int64
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	UserID        int64
+	OrderCode     string
+	Status        OrderStatusType
+	Accrual       decimal.Decimal
+	Attempts      int32
+	LastAttemptAt pgtype.Timestamptz
 }
 
 type User struct {
-	ID        int64
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	Username  string
-	Password  string
+	ID                int64
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	Username          string
+	EncryptedPassword string
 }

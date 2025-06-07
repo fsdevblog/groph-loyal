@@ -9,7 +9,8 @@ import (
 	reflect "reflect"
 
 	domain "github.com/fsdevblog/groph-loyal/internal/domain"
-	dto "github.com/fsdevblog/groph-loyal/internal/transport/accrual/dto"
+	service "github.com/fsdevblog/groph-loyal/internal/service"
+	client "github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -37,10 +38,10 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // GetOrderAccrual mocks base method.
-func (m *MockClient) GetOrderAccrual(ctx context.Context, orderCode string) (*dto.OrderAccrualResponse, error) {
+func (m *MockClient) GetOrderAccrual(ctx context.Context, orderCode string) (*client.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrderAccrual", ctx, orderCode)
-	ret0, _ := ret[0].(*dto.OrderAccrualResponse)
+	ret0, _ := ret[0].(*client.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -89,16 +90,16 @@ func (mr *MockServicerMockRecorder) OrdersForAccrualMonitoring(ctx, limit interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OrdersForAccrualMonitoring", reflect.TypeOf((*MockServicer)(nil).OrdersForAccrualMonitoring), ctx, limit)
 }
 
-// UpdateOrdersWithAccrual mocks base method.
-func (m *MockServicer) UpdateOrdersWithAccrual(ctx context.Context, updates []domain.OrderAccrualUpdateDTO) error {
+// UpdateAccrual mocks base method.
+func (m *MockServicer) UpdateAccrual(ctx context.Context, updates []service.UpdateAccrualArgs) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateOrdersWithAccrual", ctx, updates)
+	ret := m.ctrl.Call(m, "UpdateAccrual", ctx, updates)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateOrdersWithAccrual indicates an expected call of UpdateOrdersWithAccrual.
-func (mr *MockServicerMockRecorder) UpdateOrdersWithAccrual(ctx, updates interface{}) *gomock.Call {
+// UpdateAccrual indicates an expected call of UpdateAccrual.
+func (mr *MockServicerMockRecorder) UpdateAccrual(ctx, updates interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrdersWithAccrual", reflect.TypeOf((*MockServicer)(nil).UpdateOrdersWithAccrual), ctx, updates)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAccrual", reflect.TypeOf((*MockServicer)(nil).UpdateAccrual), ctx, updates)
 }

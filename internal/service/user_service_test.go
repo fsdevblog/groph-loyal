@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	repomocks "github.com/fsdevblog/groph-loyal/internal/domain/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/golang/mock/gomock"
@@ -20,7 +21,7 @@ type UserServiceTestSuite struct {
 	suite.Suite
 	mockUOW      *uowmocks.MockUOW
 	mockTX       *uowmocks.MockTX
-	mockUserRepo *repomocks.MockUserRepository
+	mockUserRepo *mocks.MockUserRepository
 	mockPsswd    *mocks.MockPasswordHasher
 	jwtSecret    []byte
 	userService  *UserService
@@ -33,14 +34,14 @@ func TestUserServiceSuite(t *testing.T) {
 func (s *UserServiceTestSuite) SetupTest() {
 	mockCtrl := gomock.NewController(s.T())
 	s.mockUOW = uowmocks.NewMockUOW(mockCtrl)
-	s.mockUserRepo = repomocks.NewMockUserRepository(mockCtrl)
+	s.mockUserRepo = mocks.NewMockUserRepository(mockCtrl)
 	s.mockPsswd = mocks.NewMockPasswordHasher(mockCtrl)
 	s.mockTX = uowmocks.NewMockTX(mockCtrl)
 
 	s.jwtSecret = []byte("secret")
 
 	// Мок получения репозитория из uow. Выполняется в инициализации сервиса.
-	s.mockUOW.EXPECT().GetRepository(uow.RepositoryName(domain.UserRepoName)).
+	s.mockUOW.EXPECT().GetRepository(uow.RepositoryName(repoargs.UserRepoName)).
 		Return(s.mockUserRepo, nil).AnyTimes()
 
 	// Инициализация сервиса.
@@ -68,11 +69,11 @@ func (s *UserServiceTestSuite) TestLogin() {
 	validHashPassword := "hash ok"
 
 	savedUser := domain.User{
-		ID:        1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Username:  savedUserUsername,
-		Password:  validHashPassword,
+		ID:                1,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		Username:          savedUserUsername,
+		EncryptedPassword: validHashPassword,
 	}
 
 	// Мок для сравнения пароля.
@@ -106,7 +107,7 @@ func (s *UserServiceTestSuite) TestLogin() {
 			s.Require().ErrorIs(err, t.wantErr)
 
 			if t.wantErr == nil {
-				s.Equal(t.wantHashedPassword, user.Password)
+				s.Equal(t.wantHashedPassword, user.EncryptedPassword)
 				s.NotEmpty(tokenStr)
 
 				token, tokenErr := tokens.ValidateUserJWT(tokenStr, s.jwtSecret)
@@ -128,37 +129,38 @@ func (s *UserServiceTestSuite) TestRegister() {
 		Password: "<PASSWORD>",
 	}
 
-	validHashedPassword := "hashedPassword"
+	encryptedPassword := "hashedPassword"
+	dupEncryptedPassword := "duphashedpass"
 
 	createdUser := domain.User{
-		ID:        1,
-		Username:  argsOk.Username,
-		Password:  validHashedPassword,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                1,
+		Username:          argsOk.Username,
+		EncryptedPassword: encryptedPassword,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 
 	// Мок транзакции uow.
-	s.mockTX.EXPECT().Get(uow.RepositoryName(domain.UserRepoName)).
+	s.mockTX.EXPECT().Get(uow.RepositoryName(repoargs.UserRepoName)).
 		Return(s.mockUserRepo, nil).MinTimes(1)
 
 	// Мок хеширования пароля.
-	s.mockPsswd.EXPECT().HashPassword(argsOk.Password).Return(validHashedPassword, nil)
-	s.mockPsswd.EXPECT().HashPassword(argsDuplicateUsername.Password).Return(validHashedPassword, nil)
+	s.mockPsswd.EXPECT().HashPassword(argsOk.Password).Return(encryptedPassword, nil)
+	s.mockPsswd.EXPECT().HashPassword(argsDuplicateUsername.Password).Return(dupEncryptedPassword, nil)
 
 	// Мок репозитория.
 	s.mockUserRepo.EXPECT().
-		CreateUser(gomock.Any(), gomock.Eq(domain.User{
+		CreateUser(gomock.Any(), repoargs.CreateUser{
 			Username: argsOk.Username,
-			Password: validHashedPassword,
-		})).
+			Password: encryptedPassword,
+		}).
 		Return(&createdUser, nil)
 
 	s.mockUserRepo.EXPECT().
-		CreateUser(gomock.Any(), gomock.Eq(domain.User{
+		CreateUser(gomock.Any(), repoargs.CreateUser{
 			Username: argsDuplicateUsername.Username,
-			Password: validHashedPassword,
-		})).
+			Password: dupEncryptedPassword,
+		}).
 		Return(nil, domain.ErrDuplicateKey)
 
 	// Мок uow.

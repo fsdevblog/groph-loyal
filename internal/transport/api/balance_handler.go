@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -21,7 +22,7 @@ func NewBalanceHandler(svs BalanceServicer) *BalanceHandler {
 }
 
 type BalanceResponse struct {
-	Current   float64 `json:"balance"`
+	Current   float64 `json:"current"`
 	Withdrawn float64 `json:"withdrawn"`
 }
 
@@ -38,8 +39,8 @@ func (b *BalanceHandler) Index(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, &BalanceResponse{
-		Current:   balance.DebitAmount.InexactFloat64(),
-		Withdrawn: balance.CreditAmount.InexactFloat64(),
+		Current:   balance.Current.InexactFloat64(),
+		Withdrawn: balance.Withdrawn.InexactFloat64(),
 	})
 }
 
@@ -57,6 +58,11 @@ func (b *BalanceHandler) Withdraw(c *gin.Context) {
 		return
 	}
 
+	if len(params.OrderCode) > maxOrderCodeLength || !isValidLuhn(params.OrderCode) {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
 	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
@@ -65,10 +71,6 @@ func (b *BalanceHandler) Withdraw(c *gin.Context) {
 		switch {
 		case errors.Is(err, domain.ErrNotEnoughBalance):
 			c.AbortWithStatus(http.StatusPaymentRequired)
-		case errors.Is(err, domain.ErrOwnerConflict):
-			c.AbortWithStatus(http.StatusUnauthorized)
-		case errors.Is(err, domain.ErrRecordNotFound):
-			c.AbortWithStatus(http.StatusUnprocessableEntity)
 		default:
 			_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
 		}

@@ -1,4 +1,4 @@
-package accrual
+package client
 
 import (
 	"encoding/json"
@@ -8,9 +8,6 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
-
-	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/dto"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -36,7 +33,7 @@ func (s *ClientTestSuite) TestGetOrderAccrual() {
 		name         string
 		orderCode    string
 		httpStatus   int
-		wantResponse *dto.OrderAccrualResponse
+		wantResponse *Response
 		wantErrType  error
 	}
 
@@ -45,9 +42,9 @@ func (s *ClientTestSuite) TestGetOrderAccrual() {
 			name:       "valid request",
 			orderCode:  "11111111",
 			httpStatus: http.StatusOK,
-			wantResponse: &dto.OrderAccrualResponse{
+			wantResponse: &Response{
 				OrderCode: "11111111",
-				Status:    domain.OrderStatusProcessed,
+				Status:    StatusProcessed,
 				Accrual:   decimal.NewFromInt(500),
 			},
 		}, {
