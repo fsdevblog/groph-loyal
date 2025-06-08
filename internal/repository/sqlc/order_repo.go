@@ -6,6 +6,7 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type OrderRepository struct {
@@ -56,11 +57,25 @@ func (o *OrderRepository) GetForMonitoring(
 	return orders, nil
 }
 
-func (o *OrderRepository) IncrementErrAttempts(ctx context.Context, orderIDs []int64) error {
-	if err := o.q.Orders_IncrementAttempts(ctx, orderIDs); err != nil {
-		return convertErr(err, "incrementing err attempts for orders with ids `%v`", orderIDs)
+func (o *OrderRepository) IncrementErrAttempts(
+	ctx context.Context,
+	data []repoargs.OrderBatchIncrementAttempts,
+	fn repoargs.BatchExecQueryRow,
+) {
+	var params = make([]sqlcgen.Orders_IncrementAttemptsParams, len(data))
+	for i, param := range data {
+		params[i] = sqlcgen.Orders_IncrementAttemptsParams{
+			NextAttemptAt: pgtype.Timestamptz{
+				Time:  param.NextAttemptAt,
+				Valid: true,
+			},
+			ID: param.ID,
+		}
 	}
-	return nil
+	r := o.q.Orders_IncrementAttempts(ctx, params)
+	r.Exec(func(i int, err error) {
+		fn(i, convertErr(err, "incrementing attempts for order with id %d", data[i].ID))
+	})
 }
 
 func (o *OrderRepository) CreateOrder(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
@@ -106,5 +121,6 @@ func convertOrderModel(dbModel sqlcgen.Order) *domain.Order {
 		OrderCode: dbModel.OrderCode,
 		Status:    domain.OrderStatusType(dbModel.Status),
 		Accrual:   dbModel.Accrual,
+		Attempts:  uint(dbModel.Attempts),
 	}
 }

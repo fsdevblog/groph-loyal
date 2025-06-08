@@ -48,7 +48,7 @@ func (a *App) Run() error {
 	notifyCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	a.Logger.Infof("Starting app on %+v", a.Config)
+	a.Logger.Infof("Starting app with config: %+v", a.Config)
 	conn, connErr := initPostgres(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
 	if connErr != nil {
 		return connErr
@@ -58,31 +58,18 @@ func (a *App) Run() error {
 	if uowErr != nil {
 		return fmt.Errorf("app run: %s", uowErr.Error())
 	}
-	userService, userServiceErr := service.NewUserService(
-		unitOfWork,
-		[]byte(a.Config.JWTUserSecret),
-		new(psswd.PasswordHash),
-	)
 
-	if userServiceErr != nil {
-		return fmt.Errorf("app run: %s", userServiceErr.Error())
-	}
+	services, sErr := serviceFactory(unitOfWork, []byte(a.Config.JWTUserSecret))
 
-	orderService, orderServiceErr := service.NewOrderService(unitOfWork)
-	if orderServiceErr != nil {
-		return fmt.Errorf("app run: %s", orderServiceErr.Error())
-	}
-
-	blService, blServiceErr := service.NewBalanceTransactionService(unitOfWork)
-	if blServiceErr != nil {
-		return fmt.Errorf("app run: %s", blServiceErr.Error())
+	if sErr != nil {
+		return fmt.Errorf("app run: %s", sErr.Error())
 	}
 
 	router := api.New(api.RouterArgs{
 		Logger:       a.Logger,
-		UserService:  userService,
-		OrderService: orderService,
-		BlService:    blService,
+		UserService:  services.UserService,
+		OrderService: services.OrderService,
+		BlService:    services.BlService,
 		JWTSecretKey: []byte(a.Config.JWTUserSecret),
 	})
 
@@ -94,7 +81,10 @@ func (a *App) Run() error {
 		}
 	}()
 
-	processor := accrual.NewProcessor(orderService, a.Config.AccrualSystemAddress, a.Logger)
+	processor := accrual.New(services.OrderService, a.Config.AccrualSystemAddress, a.Logger).
+		SetAccrualWorkers(5).    //nolint:mnd
+		SetLimitPerIteration(50) //nolint:mnd
+
 	go processor.Run(notifyCtx)
 
 	select {
@@ -103,6 +93,40 @@ func (a *App) Run() error {
 	case err := <-errChan:
 		return err
 	}
+}
+
+type ServiceContainer struct {
+	UserService  *service.UserService
+	OrderService *service.OrderService
+	BlService    *service.BalanceTransactionService
+}
+
+func serviceFactory(unitOfWork uow.UOW, jwtSecret []byte) (*ServiceContainer, error) {
+	userService, userServiceErr := service.NewUserService(
+		unitOfWork,
+		jwtSecret,
+		new(psswd.PasswordHash),
+	)
+
+	if userServiceErr != nil {
+		return nil, fmt.Errorf("service factory: %s", userServiceErr.Error())
+	}
+
+	orderService, orderServiceErr := service.NewOrderService(unitOfWork)
+	if orderServiceErr != nil {
+		return nil, fmt.Errorf("service factory: %s", orderServiceErr.Error())
+	}
+
+	blService, blServiceErr := service.NewBalanceTransactionService(unitOfWork)
+	if blServiceErr != nil {
+		return nil, fmt.Errorf("service factory: %s", blServiceErr.Error())
+	}
+
+	return &ServiceContainer{
+		UserService:  userService,
+		OrderService: orderService,
+		BlService:    blService,
+	}, nil
 }
 
 func initPostgres(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (*pgxpool.Pool, error) {
@@ -135,7 +159,7 @@ func initPostgres(ctx context.Context, migrationsDir, dsn string, l *logrus.Logg
 						}
 					}
 					l.WithError(connErr).
-						WithField("Attempt", fmt.Sprintf("#%d / %d", attempts, maxAttempts)).
+						WithField("CurrentAttempt", fmt.Sprintf("#%d / %d", attempts, maxAttempts)).
 						Warnf("init postgres connection error, retrying in %.f seconds", retryInterval.Seconds())
 					time.Sleep(retryInterval)
 					continue

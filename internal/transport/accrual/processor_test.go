@@ -36,7 +36,7 @@ func (s *ProcessorTestSuite) SetupTest() {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
-	s.processor = NewProcessor(s.mockService, "", logger)
+	s.processor = New(s.mockService, "", logger)
 	s.processor.client = s.mockHTTPClient
 }
 

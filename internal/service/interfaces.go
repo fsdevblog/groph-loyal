@@ -24,7 +24,11 @@ type OrderRepository interface {
 		updates []repoargs.BatchUpdateWithAccrualData,
 		fn repoargs.OrderBatchQueryRow,
 	)
-	IncrementErrAttempts(ctx context.Context, orderIDs []int64) error
+	IncrementErrAttempts(
+		ctx context.Context,
+		data []repoargs.OrderBatchIncrementAttempts,
+		fn repoargs.BatchExecQueryRow,
+	)
 }
 
 type UserRepository interface {
@@ -36,7 +40,7 @@ type BalanceTransactionRepository interface {
 	BatchCreate(
 		ctx context.Context,
 		transactions []repoargs.BalanceTransactionCreate,
-		fn repoargs.BalanceTransBatchQueryRow,
+		fn repoargs.BatchExecQueryRow,
 	)
 	GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceSum, error)
 	Create(ctx context.Context, transaction repoargs.BalanceTransactionCreate) (*domain.BalanceTransaction, error)

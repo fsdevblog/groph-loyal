@@ -122,7 +122,7 @@ func (s *OrderServiceTestSuite) TestUpdateAccrual() {
 		Do(func(
 			_ context.Context,
 			btDTO []repoargs.BalanceTransactionCreate,
-			_ repoargs.BalanceTransBatchQueryRow,
+			_ repoargs.BatchExecQueryRow,
 		) {
 			// проверяем что в мок попали нужные данные.
 			s.Len(btDTO, 1) // только одна запись с нужным статусом.

@@ -161,17 +161,15 @@ func (mr *MockOrderRepositoryMockRecorder) GetForMonitoring(ctx, limit interface
 }
 
 // IncrementErrAttempts mocks base method.
-func (m *MockOrderRepository) IncrementErrAttempts(ctx context.Context, orderIDs []int64) error {
+func (m *MockOrderRepository) IncrementErrAttempts(ctx context.Context, data []repoargs.OrderBatchIncrementAttempts, fn repoargs.BatchExecQueryRow) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IncrementErrAttempts", ctx, orderIDs)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "IncrementErrAttempts", ctx, data, fn)
 }
 
 // IncrementErrAttempts indicates an expected call of IncrementErrAttempts.
-func (mr *MockOrderRepositoryMockRecorder) IncrementErrAttempts(ctx, orderIDs interface{}) *gomock.Call {
+func (mr *MockOrderRepositoryMockRecorder) IncrementErrAttempts(ctx, data, fn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncrementErrAttempts", reflect.TypeOf((*MockOrderRepository)(nil).IncrementErrAttempts), ctx, orderIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncrementErrAttempts", reflect.TypeOf((*MockOrderRepository)(nil).IncrementErrAttempts), ctx, data, fn)
 }
 
 // MockUserRepository is a mock of UserRepository interface.
@@ -251,7 +249,7 @@ func (m *MockBalanceTransactionRepository) EXPECT() *MockBalanceTransactionRepos
 }
 
 // BatchCreate mocks base method.
-func (m *MockBalanceTransactionRepository) BatchCreate(ctx context.Context, transactions []repoargs.BalanceTransactionCreate, fn repoargs.BalanceTransBatchQueryRow) {
+func (m *MockBalanceTransactionRepository) BatchCreate(ctx context.Context, transactions []repoargs.BalanceTransactionCreate, fn repoargs.BatchExecQueryRow) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "BatchCreate", ctx, transactions, fn)
 }

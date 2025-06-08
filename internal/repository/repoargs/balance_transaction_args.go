@@ -12,4 +12,4 @@ type BalanceTransactionCreate struct {
 	Direction domain.DirectionType
 	Amount    decimal.Decimal
 }
-type BalanceTransBatchQueryRow func(i int, err error)
+type BatchExecQueryRow func(i int, err error)

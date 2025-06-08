@@ -14,17 +14,17 @@ SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;
 -- name: Orders_GetForMonitoring :many
 SELECT * FROM orders
 WHERE status IN ('NEW', 'PROCESSING')
-  AND (last_attempt_at IS NULL OR
-       last_attempt_at + (INTERVAL '1 second' * power(1.1, attempts)) <= CURRENT_TIMESTAMP)
+  AND (next_attempt_at IS NULL OR
+       next_attempt_at <= NOW())
 ORDER BY attempts, created_at
 LIMIT @_limit;
 
 
--- name: Orders_IncrementAttempts :exec
+-- name: Orders_IncrementAttempts :batchexec
 UPDATE orders
 SET attempts = attempts + 1,
-    last_attempt_at = CURRENT_TIMESTAMP
-WHERE id = ANY($1::int8[]);
+    next_attempt_at = $1
+WHERE id = $2;
 
 -- name: Orders_UpdateWithAccrualData :batchone
 UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING *;

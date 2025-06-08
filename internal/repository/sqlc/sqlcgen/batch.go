@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	decimal "github.com/shopspring/decimal"
 )
 
@@ -75,8 +76,60 @@ func (b *BalanceTransaction_CreateBatchBatchResults) Close() error {
 	return b.br.Close()
 }
 
+const orders_IncrementAttempts = `-- name: Orders_IncrementAttempts :batchexec
+UPDATE orders
+SET attempts = attempts + 1,
+    next_attempt_at = $1
+WHERE id = $2
+`
+
+type Orders_IncrementAttemptsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type Orders_IncrementAttemptsParams struct {
+	NextAttemptAt pgtype.Timestamptz
+	ID            int64
+}
+
+func (q *Queries) Orders_IncrementAttempts(ctx context.Context, arg []Orders_IncrementAttemptsParams) *Orders_IncrementAttemptsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.NextAttemptAt,
+			a.ID,
+		}
+		batch.Queue(orders_IncrementAttempts, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &Orders_IncrementAttemptsBatchResults{br, len(arg), false}
+}
+
+func (b *Orders_IncrementAttemptsBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *Orders_IncrementAttemptsBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const orders_UpdateWithAccrualData = `-- name: Orders_UpdateWithAccrualData :batchone
-UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at
+UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at
 `
 
 type Orders_UpdateWithAccrualDataBatchResults struct {
@@ -125,7 +178,7 @@ func (b *Orders_UpdateWithAccrualDataBatchResults) QueryRow(f func(int, Order, e
 			&i.Status,
 			&i.Accrual,
 			&i.Attempts,
-			&i.LastAttemptAt,
+			&i.NextAttemptAt,
 		)
 		if f != nil {
 			f(t, i, err)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 	"github.com/shopspring/decimal"
@@ -12,6 +14,8 @@ import (
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 )
+
+const attemptCoefficient float64 = 1.1
 
 type OrderService struct {
 	uow       uow.UOW
@@ -41,14 +45,19 @@ func (o *OrderService) OrdersForAccrualMonitoring(ctx context.Context, limit uin
 type UpdateAccrualArgs struct {
 	Error   error
 	OrderID int64
+	Attempt uint
 	Status  domain.OrderStatusType
 	Accrual decimal.Decimal
 }
 
-type updateAccrualData struct {
+type successUpdatesAccrual struct {
 	OrderID int64
 	Status  domain.OrderStatusType
 	Accrual decimal.Decimal
+}
+type failureUpdatesAccrual struct {
+	OrderID        int64
+	CurrentAttempt uint
 }
 
 // UpdateAccrual обновляет данные заказов с новыми статусами и суммами начисленных баллов.
@@ -67,6 +76,8 @@ func (o *OrderService) UpdateAccrual(
 	txErr := o.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
 		successData, failureIDs := o.splitSuccessFailureUpdates(updates)
 
+		// тут очень хотелось запустить апдейт параллельно через errgroup, но
+		// к сожалению tx не потокобезопасен.. Облом..
 		if err := o.updateSuccessOrdersWithAccrual(c, tx, successData); err != nil {
 			return err //nolint:wrapcheck
 		}
@@ -84,18 +95,45 @@ func (o *OrderService) UpdateAccrual(
 	return nil
 }
 
-func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, ids []int64) error {
-	if len(ids) == 0 {
+// incrementErrAttempts вычисляет время следующей попытки. Инкремент самой попытки лежит на плечах репозитория.
+// Делает батч обновление, в случае ошибок возвращает последнюю.
+func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, fails []failureUpdatesAccrual) error {
+	if len(fails) == 0 {
 		return nil
 	}
 	repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 	if repoErr != nil {
 		return repoErr
 	}
-	return repo.IncrementErrAttempts(ctx, ids) //nolint:wrapcheck
+
+	// конвертируем данные в аргументы для репозитория.
+	var args = make([]repoargs.OrderBatchIncrementAttempts, len(fails))
+	for i, fail := range fails {
+		// высчитываем время следующей проверки.
+		seconds := math.Pow(attemptCoefficient, float64(fail.CurrentAttempt))
+		delay := jitter(seconds, 0.1, 0.1)
+		nextAttempt := time.Now().Add(time.Duration(delay) * time.Second)
+
+		args[i] = repoargs.OrderBatchIncrementAttempts{
+			ID:            fail.OrderID,
+			NextAttemptAt: nextAttempt,
+		}
+	}
+	var incrementErr error
+	repo.IncrementErrAttempts(ctx, args, func(_ int, err error) {
+		if err != nil {
+			incrementErr = err
+		}
+	})
+
+	return incrementErr
 }
 
-func (o *OrderService) updateSuccessOrdersWithAccrual(ctx context.Context, tx uow.TX, data []updateAccrualData) error {
+func (o *OrderService) updateSuccessOrdersWithAccrual(
+	ctx context.Context,
+	tx uow.TX,
+	data []successUpdatesAccrual,
+) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -112,18 +150,24 @@ func (o *OrderService) updateSuccessOrdersWithAccrual(ctx context.Context, tx uo
 
 // splitSuccessFailureUpdates разбивает срез структур на 2 логические части. Одну для обновления в репозитории
 // а вторую - срез id, которые нужно пометить как ошибочные.
-func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) ([]updateAccrualData, []int64) {
-	var successData = make([]updateAccrualData, 0, len(updates))
-	var failureIDs = make([]int64, 0, len(updates))
+func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) (
+	[]successUpdatesAccrual,
+	[]failureUpdatesAccrual,
+) {
+	var successData = make([]successUpdatesAccrual, 0, len(updates))
+	var failureIDs = make([]failureUpdatesAccrual, 0, len(updates))
 	for _, update := range updates {
 		if update.Error == nil {
-			successData = append(successData, updateAccrualData{
+			successData = append(successData, successUpdatesAccrual{
 				OrderID: update.OrderID,
 				Status:  update.Status,
 				Accrual: update.Accrual,
 			})
 		} else {
-			failureIDs = append(failureIDs, update.OrderID)
+			failureIDs = append(failureIDs, failureUpdatesAccrual{
+				OrderID:        update.OrderID,
+				CurrentAttempt: update.Attempt,
+			})
 		}
 	}
 	return successData, failureIDs
@@ -187,7 +231,7 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 func (o *OrderService) updateOrdersWithAccrual(
 	ctx context.Context,
 	tx uow.TX,
-	updates []updateAccrualData,
+	updates []successUpdatesAccrual,
 ) ([]domain.Order, error) {
 	repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 	if repoErr != nil {

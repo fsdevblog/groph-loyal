@@ -16,7 +16,7 @@ INSERT INTO orders
     (user_id, order_code, status, accrual)
 VALUES
     ($1, $2, $3, $4)
-RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at
+RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at
 `
 
 type Orders_CreateParams struct {
@@ -43,13 +43,13 @@ func (q *Queries) Orders_Create(ctx context.Context, arg Orders_CreateParams) (O
 		&i.Status,
 		&i.Accrual,
 		&i.Attempts,
-		&i.LastAttemptAt,
+		&i.NextAttemptAt,
 	)
 	return i, err
 }
 
 const orders_FindByOrderCode = `-- name: Orders_FindByOrderCode :one
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders WHERE order_code = $1
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at FROM orders WHERE order_code = $1
 `
 
 func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) (Order, error) {
@@ -64,13 +64,13 @@ func (q *Queries) Orders_FindByOrderCode(ctx context.Context, orderCode string) 
 		&i.Status,
 		&i.Accrual,
 		&i.Attempts,
-		&i.LastAttemptAt,
+		&i.NextAttemptAt,
 	)
 	return i, err
 }
 
 const orders_GetByUserID = `-- name: Orders_GetByUserID :many
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order, error) {
@@ -91,7 +91,7 @@ func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order
 			&i.Status,
 			&i.Accrual,
 			&i.Attempts,
-			&i.LastAttemptAt,
+			&i.NextAttemptAt,
 		); err != nil {
 			return nil, err
 		}
@@ -104,10 +104,10 @@ func (q *Queries) Orders_GetByUserID(ctx context.Context, userID int64) ([]Order
 }
 
 const orders_GetForMonitoring = `-- name: Orders_GetForMonitoring :many
-SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, last_attempt_at FROM orders
+SELECT id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at FROM orders
 WHERE status IN ('NEW', 'PROCESSING')
-  AND (last_attempt_at IS NULL OR
-       last_attempt_at + (INTERVAL '1 second' * power(1.1, attempts)) <= CURRENT_TIMESTAMP)
+  AND (next_attempt_at IS NULL OR
+       next_attempt_at <= NOW())
 ORDER BY attempts, created_at
 LIMIT $1
 `
@@ -130,7 +130,7 @@ func (q *Queries) Orders_GetForMonitoring(ctx context.Context, Limit int32) ([]O
 			&i.Status,
 			&i.Accrual,
 			&i.Attempts,
-			&i.LastAttemptAt,
+			&i.NextAttemptAt,
 		); err != nil {
 			return nil, err
 		}
@@ -140,16 +140,4 @@ func (q *Queries) Orders_GetForMonitoring(ctx context.Context, Limit int32) ([]O
 		return nil, err
 	}
 	return items, nil
-}
-
-const orders_IncrementAttempts = `-- name: Orders_IncrementAttempts :exec
-UPDATE orders
-SET attempts = attempts + 1,
-    last_attempt_at = CURRENT_TIMESTAMP
-WHERE id = ANY($1::int8[])
-`
-
-func (q *Queries) Orders_IncrementAttempts(ctx context.Context, dollar_1 []int64) error {
-	_, err := q.db.Exec(ctx, orders_IncrementAttempts, dollar_1)
-	return err
 }

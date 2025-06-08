@@ -15,13 +15,15 @@ type User struct {
 }
 
 type Order struct {
-	ID        int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    int64
-	OrderCode string
-	Status    OrderStatusType
-	Accrual   decimal.Decimal
+	ID            int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UserID        int64
+	OrderCode     string
+	Status        OrderStatusType
+	Accrual       decimal.Decimal
+	Attempts      uint
+	NextAttemptAt *time.Time
 }
 
 type BalanceTransaction struct {

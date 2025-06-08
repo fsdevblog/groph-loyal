@@ -37,7 +37,7 @@ func (b *BalanceTransRepository) Create(
 func (b *BalanceTransRepository) BatchCreate(
 	ctx context.Context,
 	transactions []repoargs.BalanceTransactionCreate,
-	fn repoargs.BalanceTransBatchQueryRow,
+	fn repoargs.BatchExecQueryRow,
 ) {
 	var params = make([]sqlcgen.BalanceTransaction_CreateBatchParams, len(transactions))
 	for i, transaction := range transactions {

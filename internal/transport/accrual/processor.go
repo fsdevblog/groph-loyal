@@ -1,6 +1,4 @@
-// Package accrual содержит функциональность для обработки начисления баллов за заказы.
-// Модуль предоставляет процессор, который в фоновом режиме обрабатывает заказы, запрашивает информацию
-// о начислениях через внешний API и обновляет состояние заказов с полученными данными.
+// Package accrual обрабатывает начисление баллов за заказы через внешний API.
 package accrual
 
 import (
@@ -21,76 +19,62 @@ import (
 )
 
 const (
-	// defaultServiceTimeout задает стандартный таймаут для операций сервиса (3 секунды).
-	defaultServiceTimeout = 3 * time.Second
-	// defaultAPITimeout задает стандартный таймаут для запросов к внешнему API (10 секунд).
-	defaultAPITimeout = 10 * time.Second
-
-	// Значения по умолчанию для настроек процессора.
-
-	// defaultLimitPerIteration определяет максимальное количество заказов, обрабатываемых за одну итерацию.
+	defaultServiceTimeout         = 3 * time.Second
+	defaultAPITimeout             = 10 * time.Second
 	defaultLimitPerIteration uint = 100
-	// defaultAccrualWorkers устанавливает количество параллельных обработчиков для запросов начислений.
-	defaultAccrualWorkers uint = 10
+	defaultAccrualWorkers    uint = 10
 )
 
-// Processor управляет процессом получения и обновления информации о начислениях баллов за заказы.
-// Работает в фоновом режиме, обрабатывая заказы пакетами и взаимодействуя с внешним API начислений.
+// Processor обрабатывает начисления баллов за заказы через внешний API начислений.
 type Processor struct {
-	client            Client        // Клиент для взаимодействия с API начислений
-	svs               Servicer      // Сервис для работы с заказами
-	l                 *logrus.Entry // Логгер
-	limitPerIteration uint          // Максимальное количество заказов за одну итерацию
-	accrualWorkers    uint          // Количество параллельных обработчиков
+	client            Client
+	svs               Servicer
+	l                 *logrus.Entry
+	limitPerIteration uint
+	accrualWorkers    uint
 }
 
-// ProcessorOptions содержит опции для настройки процессора обработки начислений.
-type ProcessorOptions struct {
-	LimitPerIteration uint // Максимальное количество заказов за одну итерацию
-	AccrualWorkers    uint // Количество параллельных обработчиков
-}
-
-// NewProcessor создает новый экземпляр процессора обработки начислений с заданными параметрами.
-// Позволяет настроить поведение процессора через функциональные опции.
-//
-// Параметры:
-//   - svs: сервис для работы с заказами
-//   - l: экземпляр логгера
-//   - opts: функциональные опции для настройки процессора
-//
-// Возвращает настроенный экземпляр процессора.
-func NewProcessor(svs Servicer, apiBaseURL string, l *logrus.Logger, opts ...func(*ProcessorOptions)) *Processor {
-	options := ProcessorOptions{
-		LimitPerIteration: defaultLimitPerIteration,
-		AccrualWorkers:    defaultAccrualWorkers,
-	}
-
+// New создает новый экземпляр процессора обработки начислений.
+func New(svs Servicer, apiBaseURL string, l *logrus.Logger) *Processor {
 	loggerEntry := l.WithFields(logrus.Fields{
 		"component": "accrual",
 		"module":    "processor",
 	})
 
-	for _, opt := range opts {
-		opt(&options)
-	}
-
 	return &Processor{
 		svs:               svs,
 		client:            client.NewHTTPClient(apiBaseURL),
 		l:                 loggerEntry,
-		limitPerIteration: options.LimitPerIteration,
-		accrualWorkers:    options.AccrualWorkers,
+		limitPerIteration: defaultLimitPerIteration,
+		accrualWorkers:    defaultAccrualWorkers,
 	}
 }
 
-// Run запускает бесконечный цикл обработки заказов, ожидающих начисления баллов.
-// Цикл продолжается до отмены контекста. При возникновении ошибок в процессе обработки,
-// процессор логирует их и продолжает работу после небольшой паузы.
+// SetLimitPerIteration устанавливает кол-во заказов, обрабатываемых в одной итерации обработчика.
+func (p *Processor) SetLimitPerIteration(limit uint) *Processor {
+	p.limitPerIteration = limit
+	return p
+}
+
+// SetAccrualWorkers устанавливает кол-во воркеров работающих с заказами.
+func (p *Processor) SetAccrualWorkers(workers uint) *Processor {
+	p.accrualWorkers = workers
+	return p
+}
+
+// Run запускает обработку заказов в бесконечном цикле до отмены контекста.
 //
-// Параметры:
-//   - ctx: контекст для управления жизненным циклом процессора
+// Алгоритм работы:
+//  1. В каждой итерации цикла, запрашивает через сервисный слой список заказов для обработки. Объем списка лимитируется
+//     через SetLimitPerIteration.
+//  2. Для каждой итерации создаются N воркеров (кол-во настраивается через SetAccrualWorkers)
+//     которые, в свою очередь, делают запросы на API сервиса начисления баллов.
+//  3. Результат работы отправляется через сервисный слой.
 func (p *Processor) Run(ctx context.Context) {
-	p.l.Info("Starting")
+	p.l.WithFields(logrus.Fields{
+		"limitPerIteration": p.limitPerIteration,
+		"accrualWorkers":    p.accrualWorkers,
+	}).Info("Starting")
 
 	for {
 		select {
@@ -108,16 +92,8 @@ func (p *Processor) Run(ctx context.Context) {
 	}
 }
 
-// process выполняет полный цикл обработки заказов: получение списка заказов для обработки,
-// запуск воркеров для получения данных о начислениях и обновление информации о заказах.
-//
-// Алгоритм работы:
-// 1. Получает заказы, требующие обработки начислений
-// 2. Запускает параллельные воркеры для запроса данных о начислениях
-// 3. Обновляет информацию о заказах с полученными данными
-//
-// Возвращает ошибку, если возникла проблема в процессе обработки. Если не найдено заказов для обработки, возвращает
-// ошибку ErrNoOrders.
+// process выполняет цикл обработки заказов: получение списка, запрос данных через API и обновление информации.
+// Возвращает ошибку в случае проблем или ErrNoOrders если нет заказов для обработки.
 func (p *Processor) process(ctx context.Context) error {
 	orders, ordersErr := p.produce(ctx)
 
@@ -139,13 +115,17 @@ func (p *Processor) process(ctx context.Context) error {
 		}
 		updateArgs = append(updateArgs, service.UpdateAccrualArgs{
 			Error:   result.Error,
-			OrderID: result.OrderID,
+			OrderID: result.Order.ID,
+			Attempt: result.Attempt,
 			Status:  domain.OrderStatusType(result.Status),
 			Accrual: result.Accrual,
 		})
 	}
 
-	if updErr := p.svs.UpdateAccrual(ctx, updateArgs); updErr != nil {
+	reqCtx, cancel := context.WithTimeout(ctx, defaultServiceTimeout)
+	defer cancel()
+
+	if updErr := p.svs.UpdateAccrual(reqCtx, updateArgs); updErr != nil {
 		return fmt.Errorf("process: %s", updErr.Error())
 	}
 
@@ -153,29 +133,17 @@ func (p *Processor) process(ctx context.Context) error {
 }
 
 // workerResult представляет результат работы воркера по запросу начислений.
-// Содержит информацию о заказе, возможной ошибке и данные о начислении.
 type workerResult struct {
-	WorkerID uint              // ID воркера
-	OrderID  int64             // Идентификатор заказа. Пуст если есть ошибка
-	Error    error             // Ошибка, возникшая при запросе данных начисления
-	Status   client.StatusType // Статус заказа. Пустая строка если ошибка
-	Accrual  decimal.Decimal   // Сумма к начислению. Zero если ошибка
+	WorkerID uint
+	Attempt  uint
+	Order    *domain.Order
+	Error    error
+	Status   client.StatusType
+	Accrual  decimal.Decimal
 }
 
-// runWorkers запускает несколько параллельных воркеров для получения данных о начислениях
-// для списка заказов. Реализует паттерн fan-out/fan-in для параллельной обработки запросов.
-//
-// Алгоритм работы:
-// 1. Создает канал задач и заполняет его заказами для обработки
-// 2. Запускает несколько горутин-воркеров для параллельного выполнения запросов
-// 3. Собирает результаты обработки из канала результатов
-// 4. Преобразует результаты в структуры для обновления заказов
-//
-// Параметры:
-//   - ctx: контекст для управления жизненным циклом воркеров
-//   - orders: список заказов для обработки.
-//
-// Возвращает срез структур с данными для обновления заказов.
+// runWorkers запускает параллельных воркеров для получения данных о начислениях.
+// Реализует паттерн fan-out/fan-in для параллельной обработки запросов.
 func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []workerResult {
 	var taskCh = make(chan *domain.Order, len(orders))
 
@@ -198,26 +166,25 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []wor
 
 	var results = make([]workerResult, 0, len(orders))
 	for result := range resultCh {
+		l := p.l.WithFields(logrus.Fields{
+			"worker":  result.WorkerID,
+			"orderID": result.Order.ID,
+			"attempt": result.Attempt + 1,
+		})
 		if result.Error != nil {
-			p.l.WithField("worker", result.WorkerID).
-				WithError(result.Error).
-				Errorf("get accrual for order %d", result.OrderID)
+			l.WithError(result.Error).Error("get accrual for order")
 			results = append(results, workerResult{
-				OrderID: result.OrderID,
+				Order:   result.Order,
+				Attempt: result.Attempt,
 				Error:   result.Error,
 			})
 		} else {
-			p.l.WithField("worker", result.WorkerID).
-				WithFields(logrus.Fields{
-					"orderID": result.OrderID,
-					"status":  result.Status,
-					"accrual": result.Accrual,
-				}).
-				Info("Success")
+			l.WithField("accrual", result.Accrual).Info("Success")
 			results = append(results, workerResult{
-				OrderID: result.OrderID,
+				Order:   result.Order,
 				Status:  result.Status,
 				Accrual: result.Accrual,
+				Attempt: result.Attempt,
 				Error:   nil,
 			})
 		}
@@ -225,15 +192,7 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []wor
 	return results
 }
 
-// worker запускает воркер, который читает заказы из канала задач, запрашивает данные
-// о начислениях через клиент API и отправляет результаты в канал результатов.
-// Воркер завершается при закрытии канала задач или отмене контекста.
-//
-// Параметры:
-//   - ctx: контекст для управления жизненным циклом воркера
-//   - wg: WaitGroup для синхронизации завершения всех воркеров
-//   - taskCh: канал задач с заказами для обработки
-//   - resultCh: канал для отправки результатов обработки
+// worker обрабатывает заказы из канала, запрашивает данные через API и отправляет результаты.
 func (p *Processor) worker(
 	ctx context.Context,
 	wg *sync.WaitGroup,
@@ -258,34 +217,26 @@ func (p *Processor) worker(
 			if err != nil {
 				resultCh <- &workerResult{
 					WorkerID: workerID,
-					OrderID:  task.ID,
+					Order:    task,
+					Attempt:  task.Attempts,
 					Error:    err,
 				}
-				return
+				continue
 			}
 
 			resultCh <- &workerResult{
 				WorkerID: workerID,
-				OrderID:  task.ID,
+				Order:    task,
 				Status:   resp.Status,
+				Attempt:  task.Attempts,
 				Accrual:  resp.Accrual,
 			}
 		}
 	}
 }
 
-// produce получает из сервиса список заказов, ожидающих обработки начислений.
-// Запрос к сервису выполняется с ограниченным таймаутом.
-//
-// Если заказы для обработки отсутствуют, возвращает специальную ошибку ErrNoOrders.
-// При других ошибках в работе сервиса возвращает ошибку с контекстом.
-//
-// Параметры:
-//   - ctx: контекст для управления запросом
-//
-// Возвращает:
-//   - список заказов для обработки
-//   - ошибку, если запрос не удался или заказы отсутствуют
+// produce получает список заказов для обработки начислений.
+// Возвращает ErrNoOrders, если заказы отсутствуют.
 func (p *Processor) produce(ctx context.Context) ([]domain.Order, error) {
 	produceCtx, cancel := context.WithTimeout(ctx, defaultServiceTimeout)
 	defer cancel()

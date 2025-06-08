@@ -118,7 +118,7 @@ type Order struct {
 	Status        OrderStatusType
 	Accrual       decimal.Decimal
 	Attempts      int32
-	LastAttemptAt pgtype.Timestamptz
+	NextAttemptAt pgtype.Timestamptz
 }
 
 type User struct {

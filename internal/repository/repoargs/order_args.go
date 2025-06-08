@@ -1,6 +1,8 @@
 package repoargs
 
 import (
+	"time"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/shopspring/decimal"
 )
@@ -12,3 +14,8 @@ type BatchUpdateWithAccrualData struct {
 }
 
 type OrderBatchQueryRow func(i int, t *domain.Order, err error)
+
+type OrderBatchIncrementAttempts struct {
+	ID            int64
+	NextAttemptAt time.Time
+}
