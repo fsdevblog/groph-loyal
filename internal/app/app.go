@@ -95,9 +95,7 @@ func (a *App) Run() error {
 	}()
 
 	processor := accrual.NewProcessor(orderService, a.Config.AccrualSystemAddress, a.Logger)
-	go func() {
-		processor.Run(notifyCtx)
-	}()
+	go processor.Run(notifyCtx)
 
 	select {
 	case <-notifyCtx.Done():

@@ -56,7 +56,7 @@ func (s *ProcessorTestSuite) TestProcess_NoOrders() {
 
 	err := s.processor.process(s.T().Context())
 
-	s.NoError(err)
+	s.ErrorIs(err, ErrNoOrders)
 }
 
 // TestProcess_ErrorAccrualReq Тест на случай, когда есть заказы, но ошибка при получении информации о начислениях.
@@ -151,8 +151,8 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 				}
 			}
 
-			s.True(foundFirstUpdate, "Не найдено обновление для заказа с ID=1")
-			s.True(foundSecondUpdate, "Не найдено обновление для заказа с ID=2")
+			s.Truef(foundFirstUpdate, "Не найдено обновление для заказа с ID=%d", 1)
+			s.Truef(foundSecondUpdate, "Не найдено обновление для заказа с ID=%d", 2)
 		}).
 		Return(nil)
 

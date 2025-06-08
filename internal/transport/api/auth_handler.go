@@ -27,11 +27,6 @@ type UserRegisterParams struct {
 	Password string `binding:"required,min=6,max=255" form:"password" json:"password"`
 }
 
-type UserRegisterResponse struct {
-	ID       int64  `json:"id"`
-	Username string `json:"login"`
-}
-
 // Register POST RouteGroup + RegisterRoute. Регистрирует пользователя и аутентифицирует его.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var params UserRegisterParams
@@ -55,10 +50,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 	if createErr != nil {
 		if errors.Is(createErr, domain.ErrDuplicateKey) {
-			c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "user already exists"})
+			_ = c.AbortWithError(http.StatusConflict, errors.New("user with this login already exists")).
+				SetType(gin.ErrorTypePublic)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, createErr)
+		_ = c.AbortWithError(http.StatusInternalServerError, createErr).
+			SetType(gin.ErrorTypePrivate)
 		return
 	}
 
@@ -67,8 +64,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 type UserLoginParams struct {
-	Username string `form:"login"    json:"login"`
-	Password string `form:"password" json:"password"`
+	Username string `binding:"required,min=1,max=15"  json:"login"`
+	Password string `binding:"required,min=6,max=255" json:"password"`
 }
 
 type UserResponse struct {

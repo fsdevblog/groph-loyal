@@ -39,7 +39,7 @@ const (
 type Processor struct {
 	client            Client        // Клиент для взаимодействия с API начислений
 	svs               Servicer      // Сервис для работы с заказами
-	l                 *logrus.Entry // Логгер с контекстными полями компонента
+	l                 *logrus.Entry // Логгер
 	limitPerIteration uint          // Максимальное количество заказов за одну итерацию
 	accrualWorkers    uint          // Количество параллельных обработчиков
 }
@@ -85,7 +85,7 @@ func NewProcessor(svs Servicer, apiBaseURL string, l *logrus.Logger, opts ...fun
 
 // Run запускает бесконечный цикл обработки заказов, ожидающих начисления баллов.
 // Цикл продолжается до отмены контекста. При возникновении ошибок в процессе обработки,
-// процессор логирует их и продолжает работу. Между каждой итерацией происходит небольшая пауза.
+// процессор логирует их и продолжает работу после небольшой паузы.
 //
 // Параметры:
 //   - ctx: контекст для управления жизненным циклом процессора
@@ -99,9 +99,11 @@ func (p *Processor) Run(ctx context.Context) {
 			return
 		default:
 			if err := p.process(ctx); err != nil {
-				p.l.WithError(err).Error("process error")
+				if !errors.Is(err, ErrNoOrders) {
+					p.l.WithError(err).Error("process error")
+				}
+				time.Sleep(time.Second) // небольшая пауза чтоб не заддосить БД.
 			}
-			time.Sleep(time.Second)
 		}
 	}
 }
@@ -114,15 +116,13 @@ func (p *Processor) Run(ctx context.Context) {
 // 2. Запускает параллельные воркеры для запроса данных о начислениях
 // 3. Обновляет информацию о заказах с полученными данными
 //
-// Возвращает ошибку, если возникла проблема в процессе обработки (кроме случая отсутствия заказов).
+// Возвращает ошибку, если возникла проблема в процессе обработки. Если не найдено заказов для обработки, возвращает
+// ошибку ErrNoOrders.
 func (p *Processor) process(ctx context.Context) error {
 	orders, ordersErr := p.produce(ctx)
 
 	if ordersErr != nil {
-		if errors.Is(ordersErr, ErrNoOrders) {
-			return nil
-		}
-		return fmt.Errorf("process: %s", ordersErr.Error())
+		return fmt.Errorf("process: %w", ordersErr)
 	}
 
 	results := p.runWorkers(ctx, orders)
@@ -155,10 +155,11 @@ func (p *Processor) process(ctx context.Context) error {
 // workerResult представляет результат работы воркера по запросу начислений.
 // Содержит информацию о заказе, возможной ошибке и данные о начислении.
 type workerResult struct {
-	OrderID int64             // Идентификатор заказа. Пуст если есть ошибка
-	Error   error             // Ошибка, возникшая при запросе данных начисления
-	Status  client.StatusType // Статус заказа. Пустая строка если ошибка
-	Accrual decimal.Decimal   // Сумма к начислению. Zero если ошибка
+	WorkerID uint              // ID воркера
+	OrderID  int64             // Идентификатор заказа. Пуст если есть ошибка
+	Error    error             // Ошибка, возникшая при запросе данных начисления
+	Status   client.StatusType // Статус заказа. Пустая строка если ошибка
+	Accrual  decimal.Decimal   // Сумма к начислению. Zero если ошибка
 }
 
 // runWorkers запускает несколько параллельных воркеров для получения данных о начислениях
@@ -168,7 +169,7 @@ type workerResult struct {
 // 1. Создает канал задач и заполняет его заказами для обработки
 // 2. Запускает несколько горутин-воркеров для параллельного выполнения запросов
 // 3. Собирает результаты обработки из канала результатов
-// 4. Преобразует успешные результаты в структуры для обновления заказов
+// 4. Преобразует результаты в структуры для обновления заказов
 //
 // Параметры:
 //   - ctx: контекст для управления жизненным циклом воркеров
@@ -188,8 +189,8 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []wor
 
 	var resultCh = make(chan *workerResult, len(orders))
 
-	for range p.accrualWorkers {
-		p.worker(ctx, wg, taskCh, resultCh)
+	for i := range p.accrualWorkers {
+		go p.worker(ctx, wg, i+1, taskCh, resultCh)
 	}
 	wg.Wait()
 
@@ -198,13 +199,21 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []wor
 	var results = make([]workerResult, 0, len(orders))
 	for result := range resultCh {
 		if result.Error != nil {
-			p.l.WithError(result.Error).
+			p.l.WithField("worker", result.WorkerID).
+				WithError(result.Error).
 				Errorf("get accrual for order %d", result.OrderID)
 			results = append(results, workerResult{
 				OrderID: result.OrderID,
 				Error:   result.Error,
 			})
 		} else {
+			p.l.WithField("worker", result.WorkerID).
+				WithFields(logrus.Fields{
+					"orderID": result.OrderID,
+					"status":  result.Status,
+					"accrual": result.Accrual,
+				}).
+				Info("Success")
 			results = append(results, workerResult{
 				OrderID: result.OrderID,
 				Status:  result.Status,
@@ -228,6 +237,7 @@ func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []wor
 func (p *Processor) worker(
 	ctx context.Context,
 	wg *sync.WaitGroup,
+	workerID uint,
 	taskCh <-chan *domain.Order,
 	resultCh chan<- *workerResult,
 ) {
@@ -247,16 +257,18 @@ func (p *Processor) worker(
 			cancel()
 			if err != nil {
 				resultCh <- &workerResult{
-					OrderID: task.ID,
-					Error:   err,
+					WorkerID: workerID,
+					OrderID:  task.ID,
+					Error:    err,
 				}
 				return
 			}
 
 			resultCh <- &workerResult{
-				OrderID: task.ID,
-				Status:  resp.Status,
-				Accrual: resp.Accrual,
+				WorkerID: workerID,
+				OrderID:  task.ID,
+				Status:   resp.Status,
+				Accrual:  resp.Accrual,
 			}
 		}
 	}
