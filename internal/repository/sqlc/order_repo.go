@@ -22,6 +22,9 @@ func (o *OrderRepository) BatchUpdateWithAccrualData(
 	updates []repoargs.BatchUpdateWithAccrualData,
 	fn repoargs.OrderBatchQueryRow,
 ) {
+	if len(updates) == 0 {
+		return
+	}
 	var data = make([]sqlcgen.Orders_UpdateWithAccrualDataParams, len(updates))
 	for i, update := range updates {
 		data[i] = sqlcgen.Orders_UpdateWithAccrualDataParams{
@@ -62,6 +65,9 @@ func (o *OrderRepository) IncrementErrAttempts(
 	data []repoargs.OrderBatchIncrementAttempts,
 	fn repoargs.BatchExecQueryRow,
 ) {
+	if len(data) == 0 {
+		return
+	}
 	var params = make([]sqlcgen.Orders_IncrementAttemptsParams, len(data))
 	for i, param := range data {
 		params[i] = sqlcgen.Orders_IncrementAttemptsParams{
@@ -113,6 +119,10 @@ func (o *OrderRepository) GetByUserID(ctx context.Context, userID int64) ([]doma
 }
 
 func convertOrderModel(dbModel sqlcgen.Order) *domain.Order {
+	safeAttempts, err := safeConvertInt32ToUint(dbModel.Attempts)
+	if err != nil {
+		safeAttempts = 0
+	}
 	return &domain.Order{
 		ID:        dbModel.ID,
 		CreatedAt: dbModel.CreatedAt.Time,
@@ -121,6 +131,6 @@ func convertOrderModel(dbModel sqlcgen.Order) *domain.Order {
 		OrderCode: dbModel.OrderCode,
 		Status:    domain.OrderStatusType(dbModel.Status),
 		Accrual:   dbModel.Accrual,
-		Attempts:  uint(dbModel.Attempts),
+		Attempts:  safeAttempts,
 	}
 }

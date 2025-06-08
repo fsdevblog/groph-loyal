@@ -8,6 +8,7 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
 )
 
+// BalanceTransRepository репозиторий для работы с транзакциями баланса.
 type BalanceTransRepository struct {
 	q *sqlcgen.Queries
 }
@@ -16,6 +17,7 @@ func NewBalanceTransactionRepository(conn sqlcgen.DBTX) *BalanceTransRepository 
 	return &BalanceTransRepository{q: sqlcgen.New(conn)}
 }
 
+// Create создает транзакцию. Возвращает оберную ошибку.
 func (b *BalanceTransRepository) Create(
 	ctx context.Context,
 	transaction repoargs.BalanceTransactionCreate,
@@ -34,6 +36,7 @@ func (b *BalanceTransRepository) Create(
 	return convertBalanceTransactionModel(dbTrans), nil
 }
 
+// BatchCreate создает несколько транзакций баланса пакетно, вызывает callback для обработки результатов.
 func (b *BalanceTransRepository) BatchCreate(
 	ctx context.Context,
 	transactions []repoargs.BalanceTransactionCreate,
@@ -55,6 +58,7 @@ func (b *BalanceTransRepository) BatchCreate(
 	})
 }
 
+// GetUserBalance возвращает сумму кредитных и дебетовых операций пользователя.
 func (b *BalanceTransRepository) GetUserBalance(
 	ctx context.Context,
 	userID int64,
@@ -74,6 +78,7 @@ func (b *BalanceTransRepository) GetUserBalance(
 	return sum, nil
 }
 
+// GetByDirection возвращает транзакции пользователя по заданному направлению (дебит/кредит).
 func (b *BalanceTransRepository) GetByDirection(
 	ctx context.Context,
 	userID int64,

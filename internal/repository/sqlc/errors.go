@@ -14,6 +14,14 @@ const (
 	uniqueViolationCode = "23505"
 )
 
+// convertErr преобразует ошибку к стандартному виду для слоя репозитория.
+// Добавляет форматированное сообщение контекста, тип бизнес-ошибки и оригинальное сообщение.
+// Особенности:
+//   - Для ошибок отсутствия данных (pgx.ErrNoRows) возвращает ErrRecordNotFound из domain.
+//   - Для ошибок базы Postgres определяет дубликаты ключей (uniqueViolationCode) как ErrDuplicateKey из domain.
+//   - Все остальные ошибки возвращаются как ErrUnknown с оригинальным сообщением.
+//
+// Используется для единообразной обработки и возврата ошибок из репозитория.
 func convertErr(err error, format string, formatArgs ...any) error {
 	if err == nil {
 		return nil

@@ -13,3 +13,11 @@ func safeConvertUintToInt32(val uint) (int32, error) {
 	}
 	return int32(val), nil
 }
+
+// safeConvertInt32ToUint безопасно конвертирует int32 в uint. В случае отрицательного значения выбрасывает ошибку.
+func safeConvertInt32ToUint(val int32) (uint, error) {
+	if val < 0 {
+		return 0, fmt.Errorf("value is negative: %d", val)
+	}
+	return uint(val), nil
+}

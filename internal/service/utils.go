@@ -12,6 +12,6 @@ func jitter(value, minPercent, maxPercent float64) float64 {
 		minPercent = 0.1
 		maxPercent = 0.1
 	}
-	factor := 1 - minPercent + rand.Float64()*(minPercent+maxPercent)
+	factor := 1 - minPercent + rand.Float64()*(minPercent+maxPercent) // nolint:gosec
 	return value * factor
 }

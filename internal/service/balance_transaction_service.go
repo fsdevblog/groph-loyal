@@ -12,11 +12,13 @@ import (
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 )
 
+// BalanceTransactionService управляет операциями над балансом пользователя.
 type BalanceTransactionService struct {
 	uow    uow.UOW
 	blRepo BalanceTransactionRepository
 }
 
+// NewBalanceTransactionService создает новый сервис для транзакций баланса.
 func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error) {
 	rName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
 	blRepo, blRepoErr := uow.GetRepositoryAs[BalanceTransactionRepository](u, rName)
@@ -29,12 +31,20 @@ func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error)
 	}, nil
 }
 
+// UserBalance отражает текущее состояние баланса пользователя:
+// сколько всего начислено, сколько списано, и итоговая сумма на счету.
 type UserBalance struct {
 	UserID    int64
 	Current   decimal.Decimal
 	Withdrawn decimal.Decimal
 }
 
+// GetUserBalance возвращает агрегированную информацию о балансе пользователя:
+//   - текущий баланс (Current),
+//   - сумма всех списаний (Withdrawn).
+//
+// В случае неудачи возвращает обернутую ошибку.
+// Если пользователь не найден, вернется ошибка domain.ErrRecordNotFound.
 func (b *BalanceTransactionService) GetUserBalance(
 	ctx context.Context,
 	userID int64,
@@ -50,7 +60,14 @@ func (b *BalanceTransactionService) GetUserBalance(
 	}, nil
 }
 
-// Withdraw создает ордер и в счет оплаты которого списываются балы. Затем собственно списывает.
+// Withdraw реализует процедуру списания баллов пользователя через создание заказа в счет которого списываются баллы:
+// - Сначала создаётся новый заказ на списание,
+// - Затем проверяется, хватает ли средств на счету,
+// - Если хвататет — регистрируется транзакция на списание (credit).
+//
+// Операция проводятся в рамках транзакции.
+// В случае недостаточного баланса возвращает ошибку domain.ErrNotEnoughBalance.
+// При успешном исполнении возвращает созданную транзакцию баланса.
 func (b *BalanceTransactionService) Withdraw(
 	ctx context.Context,
 	userID int64,
@@ -60,23 +77,23 @@ func (b *BalanceTransactionService) Withdraw(
 	var bl *domain.BalanceTransaction
 	txErr := b.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
 		orderRepo, orderRepoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
-
 		if orderRepoErr != nil {
 			return orderRepoErr //nolint:wrapcheck
 		}
+
+		// Создаем заказ, в счет которого будут списываться баллы.
 		order, orderErr := orderRepo.CreateOrder(c, userID, orderCode)
 		if orderErr != nil {
 			return orderErr //nolint:wrapcheck
 		}
 
-		// проверяем баланс юзера
 		blRName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
 		blRepo, blRepoErr := uow.GetAs[BalanceTransactionRepository](tx, blRName)
-
 		if blRepoErr != nil {
 			return blRepoErr //nolint:wrapcheck
 		}
 
+		// проверяем баланс юзера
 		balance, balanceErr := blRepo.GetUserBalance(ctx, userID)
 		if balanceErr != nil {
 			return balanceErr //nolint:wrapcheck
@@ -108,6 +125,9 @@ func (b *BalanceTransactionService) Withdraw(
 	return bl, nil
 }
 
+// GetByDirection возвращает все транзакции пользователя по выбранному направлению:
+// дебетовые (начисления) или кредитовые (списания).
+// В случае ошибки — возвращает обернутую ошибку.
 func (b *BalanceTransactionService) GetByDirection(
 	ctx context.Context,
 	userID int64,

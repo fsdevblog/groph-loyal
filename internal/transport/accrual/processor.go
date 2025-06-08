@@ -210,7 +210,6 @@ func (p *Processor) worker(
 				return
 			}
 
-			// Создаем контекст с таймаутом для запроса к API
 			reqCtx, cancel := context.WithTimeout(ctx, defaultAPITimeout)
 			resp, err := p.client.GetOrderAccrual(reqCtx, task.OrderCode)
 			cancel()

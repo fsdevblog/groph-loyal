@@ -36,6 +36,7 @@ func New(args RouterArgs) *gin.Engine {
 	if args.Logger != nil {
 		r.Use(middlewares.LoggerMiddleware(args.Logger))
 	}
+	r.Use(middlewares.Errors())
 
 	authHandler := NewAuthHandler(args.UserService)
 	ordersHandler := NewOrdersHandler(args.OrderService)

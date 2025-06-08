@@ -15,11 +15,12 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 )
 
-const attemptCoefficient float64 = 1.1
+const attemptCoefficient float64 = 1.1 // Коэффициент для экспоненциального увеличения задержки попыток проверки заказа
 
+// OrderService реализует бизнес-логику работы с заказами.
 type OrderService struct {
-	uow       uow.UOW
-	orderRepo OrderRepository
+	uow       uow.UOW         // Unit of Work для транзакционных операций
+	orderRepo OrderRepository // Репозиторий заказов
 }
 
 func NewOrderService(u uow.UOW) (*OrderService, error) {
@@ -33,7 +34,7 @@ func NewOrderService(u uow.UOW) (*OrderService, error) {
 	}, nil
 }
 
-// OrdersForAccrualMonitoring возвращает заказы подлежащие мониторингу начисления баллов лояльности.
+// OrdersForAccrualMonitoring возвращает заказы, которые необходимо мониторить для начисления баллов лояльности.
 func (o *OrderService) OrdersForAccrualMonitoring(ctx context.Context, limit uint) ([]domain.Order, error) {
 	orders, err := o.orderRepo.GetForMonitoring(ctx, limit)
 	if err != nil {
@@ -42,33 +43,31 @@ func (o *OrderService) OrdersForAccrualMonitoring(ctx context.Context, limit uin
 	return orders, nil
 }
 
+// UpdateAccrualArgs — структура, описывающая аргумент для обновления начисления у одного заказа.
 type UpdateAccrualArgs struct {
-	Error   error
-	OrderID int64
-	Attempt uint
-	Status  domain.OrderStatusType
-	Accrual decimal.Decimal
+	Error   error                  // ошибка, возникшая при обработке заказа (если есть)
+	OrderID int64                  // ID заказа
+	Attempt uint                   // кол-во текущих попыток
+	Status  domain.OrderStatusType // новый статус заказа (значение по умолчанию если есть ошибка)
+	Accrual decimal.Decimal        // сумма начисленных баллов (значение по умолчанию если есть ошибка)
 }
 
+// successUpdatesAccrual — структура для успешных обновлений начислений по заказу.
 type successUpdatesAccrual struct {
 	OrderID int64
 	Status  domain.OrderStatusType
 	Accrual decimal.Decimal
 }
+
+// failureUpdatesAccrual — структура для неудачных (ошибочных) обновлений, где требуется инкрементировать счетчик
+// попыток.
 type failureUpdatesAccrual struct {
 	OrderID        int64
 	CurrentAttempt uint
 }
 
-// UpdateAccrual обновляет данные заказов с новыми статусами и суммами начисленных баллов.
-//
-// Параметры:
-//   - ctx: контекст для управления жизненным циклом
-//   - updates: срез структур для обновления заказов.
-//
-// Алгоритм работы:
-//  1. Обновляет данные заказов в базе данных
-//  2. Создает транзакции баланса для юзеров, которым предполагается начисление баллов лояльности.
+// UpdateAccrual обновляет статусы заказов и начисления баллов согласно переданному срезу обновлений.
+// Сначала сохраняет новые статусы и баллы по успешным заказам, затем увеличивает число попыток у неуспешных.
 func (o *OrderService) UpdateAccrual(
 	ctx context.Context,
 	updates []UpdateAccrualArgs,
@@ -111,7 +110,7 @@ func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, fail
 	for i, fail := range fails {
 		// высчитываем время следующей проверки.
 		seconds := math.Pow(attemptCoefficient, float64(fail.CurrentAttempt))
-		delay := jitter(seconds, 0.1, 0.1)
+		delay := jitter(seconds, 0.25, 0.25) //nolint:mnd
 		nextAttempt := time.Now().Add(time.Duration(delay) * time.Second)
 
 		args[i] = repoargs.OrderBatchIncrementAttempts{
@@ -129,6 +128,8 @@ func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, fail
 	return incrementErr
 }
 
+// updateSuccessOrdersWithAccrual обновляет статусы заказов с успешным начислением
+// и создает транзакции начислений баллов.
 func (o *OrderService) updateSuccessOrdersWithAccrual(
 	ctx context.Context,
 	tx uow.TX,
@@ -148,8 +149,9 @@ func (o *OrderService) updateSuccessOrdersWithAccrual(
 	return nil
 }
 
-// splitSuccessFailureUpdates разбивает срез структур на 2 логические части. Одну для обновления в репозитории
-// а вторую - срез id, которые нужно пометить как ошибочные.
+// splitSuccessFailureUpdates разбивает срез обновлений на две группы:
+// - успешные (без ошибок)
+// - неудачные (с ошибками).
 func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) (
 	[]successUpdatesAccrual,
 	[]failureUpdatesAccrual,
@@ -173,21 +175,11 @@ func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) (
 	return successData, failureIDs
 }
 
-// createBalanceTransactionsForOrders создает записи в таблице balance_transactions для заказов со статусом
-// OrderStatusProcessed
+// createBalanceTransactionsForOrders создает записи в таблице транзакций баланса для заказов со статусом PROCESSED.
 //
-// Параметры:
-//   - ctx: контекст для управления жизненным циклом
-//   - tx: UnitOfWork транзакция
-//   - orders: список заказов для обработки
-//
-// Алгоритм работы:
-//  1. Фильтрует срез ордеров по вышеупомянутому статусу.
-//  2. Формирует и отправляет батч запрос для репозитория транзакций баланса.
-//  3. Анализирует полученный результат, игнорируя ошибки дубликата так как дубликат может быть только по ID заказа,
-//     а заказ обрабатывается лишь единожды.
-//
-// Возвращает ошибку. Если при батч запросе произошло несколько ошибок, вернется последняя ошибка.
+// 1. Фильтрует заказы по статусу PROCESSED.
+// 2. Формирует батч и вызывает репозиторий транзакций баланса.
+// 3. Игнорирует ошибки дубликата (обработка заказа допускается один раз).
 func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, tx uow.TX, orders []domain.Order) error {
 	var transDTO = make([]repoargs.BalanceTransactionCreate, 0, len(orders))
 	for _, order := range orders {
