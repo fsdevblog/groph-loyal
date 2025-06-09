@@ -1,12 +1,12 @@
 version: "2"
 sql:
   - engine: postgresql
-    queries: internal/repository/sqlc/queries
+    queries: internal/repository/pgrepo/queries
     schema: internal/db/migrations
     gen:
       go:
         package: sqlcgen
-        out: internal/repository/sqlc/sqlcgen
+        out: internal/repository/pgrepo/sqlcgen
         sql_package: pgx/v5
         overrides:
           - db_type: "pg_catalog.numeric"

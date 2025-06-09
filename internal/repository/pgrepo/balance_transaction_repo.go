@@ -1,11 +1,11 @@
-package sqlc
+package pgrepo
 
 import (
 	"context"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
+	"github.com/fsdevblog/groph-loyal/internal/repository/pgrepo/sqlcgen"
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
-	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc/sqlcgen"
 )
 
 // BalanceTransRepository репозиторий для работы с транзакциями баланса.

@@ -2,11 +2,7 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sync"
-	"time"
-
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual"
@@ -14,10 +10,9 @@ import (
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
-	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
+	"github.com/fsdevblog/groph-loyal/internal/repository/pgrepo"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api"
-	"github.com/golang-migrate/migrate/v4"
 	"github.com/sirupsen/logrus"
 
 	// driver for migration applying postgres.
@@ -47,19 +42,18 @@ func (a *App) Run() error {
 	defer stop()
 
 	a.Logger.Infof("Starting app with config: %+v", a.Config)
-	conn, connErr := initPostgres(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
+	conn, connErr := pgrepo.Connect(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
 	if connErr != nil {
 		return connErr
 	}
 	defer conn.Close()
-
 
 	unitOfWork, uowErr := initUOW(conn)
 	if uowErr != nil {
 		return fmt.Errorf("app run: %s", uowErr.Error())
 	}
 
-	services, sErr := serviceFactory(unitOfWork, []byte(a.Config.JWTUserSecret))
+	services, sErr := service.Factory(unitOfWork, []byte(a.Config.JWTUserSecret))
 
 	if sErr != nil {
 		return fmt.Errorf("app run: %s", sErr.Error())
@@ -95,126 +89,12 @@ func (a *App) Run() error {
 	}
 }
 
-type ServiceContainer struct {
-	UserService  *service.UserService
-	OrderService *service.OrderService
-	BlService    *service.BalanceTransactionService
-}
-
-func serviceFactory(unitOfWork uow.UOW, jwtSecret []byte) (*ServiceContainer, error) {
-	userService, userServiceErr := service.NewUserService(unitOfWork, jwtSecret)
-
-	if userServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", userServiceErr.Error())
-	}
-
-	orderService, orderServiceErr := service.NewOrderService(unitOfWork)
-	if orderServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", orderServiceErr.Error())
-	}
-
-	blService, blServiceErr := service.NewBalanceTransactionService(unitOfWork)
-	if blServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", blServiceErr.Error())
-	}
-
-	return &ServiceContainer{
-		UserService:  userService,
-		OrderService: orderService,
-		BlService:    blService,
-	}, nil
-}
-
-func initPostgres(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (*pgxpool.Pool, error) {
-	type connResult struct {
-		conn *pgxpool.Pool
-		err  error
-	}
-	connChan := make(chan connResult, 1)
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
-		var attempts uint
-		var maxAttempts uint = 30
-		var retryInterval = 3 * time.Second
-
-		for {
-			select {
-			case <-ctx.Done():
-				connChan <- connResult{err: ctx.Err()}
-				return
-			default:
-				conn, connErr := newPostgresConnection(ctx, dsn)
-				if connErr != nil {
-					attempts++
-					if attempts > maxAttempts {
-						connChan <- connResult{
-							err: fmt.Errorf("init postgres connection after %d attempts: %w", maxAttempts, connErr),
-						}
-					}
-					l.WithError(connErr).
-						WithField("CurrentAttempt", fmt.Sprintf("#%d / %d", attempts, maxAttempts)).
-						Warnf("init postgres connection error, retrying in %.f seconds", retryInterval.Seconds())
-					time.Sleep(retryInterval)
-					continue
-				}
-				connChan <- connResult{conn: conn}
-				return
-			}
-		}
-	}(wg)
-
-	wg.Wait()
-	close(connChan)
-
-	res := <-connChan
-	if res.err != nil {
-		return nil, fmt.Errorf("init postgres connection: %s", res.err.Error())
-	}
-
-	if err := postgresMigrate(migrationsDir, dsn); err != nil {
-		return nil, err
-	}
-	return res.conn, nil
-}
-
-func newPostgresConnection(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	poolConfig, confErr := pgxpool.ParseConfig(dsn)
-	if confErr != nil {
-		return nil, fmt.Errorf("parse postgres config: %s", confErr.Error())
-	}
-	pool, poolErr := pgxpool.NewWithConfig(ctx, poolConfig)
-	if poolErr != nil {
-		return nil, fmt.Errorf("failed to create pool: %s", poolErr.Error())
-	}
-
-	// Проверяем, что соединение работает (Ping)
-	if pingErr := pool.Ping(ctx); pingErr != nil {
-		return nil, fmt.Errorf("failed to connect to postgres: %s", pingErr.Error())
-	}
-
-	return pool, nil
-}
-
-func postgresMigrate(dir string, dsn string) error {
-	m, mErr := migrate.New("file://"+dir, dsn)
-	if mErr != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", mErr)
-	}
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to migrate schema: %w", err)
-	}
-	return nil
-}
-
 func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	unitOfWork := uow.NewUnitOfWork(conn)
 
 	// user repo
 	userRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
-		return sqlc.NewUserRepository(dbtx)
+		return pgrepo.NewUserRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.UserRepoName), userRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
@@ -222,7 +102,7 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 
 	// order repo
 	orderRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
-		return sqlc.NewOrderRepository(dbtx)
+		return pgrepo.NewOrderRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.OrderRepoName), orderRepoFactoryFn); regErr != nil {
 		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
@@ -230,7 +110,7 @@ func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 
 	// balance transaction repo
 	balanceTransactionRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
-		return sqlc.NewBalanceTransactionRepository(dbtx)
+		return pgrepo.NewBalanceTransactionRepository(dbtx)
 	}
 	if regErr := unitOfWork.Register(
 		uow.RepositoryName(repoargs.BalanceTransactionRepoName),

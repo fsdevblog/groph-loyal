@@ -1,4 +1,4 @@
-package sqlc
+package pgrepo
 
 import (
 	"errors"
