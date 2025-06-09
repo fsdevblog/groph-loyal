@@ -13,8 +13,6 @@ import (
 
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 
-	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
-
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/repository/sqlc"
 	"github.com/fsdevblog/groph-loyal/internal/service"
@@ -102,11 +100,7 @@ type ServiceContainer struct {
 }
 
 func serviceFactory(unitOfWork uow.UOW, jwtSecret []byte) (*ServiceContainer, error) {
-	userService, userServiceErr := service.NewUserService(
-		unitOfWork,
-		jwtSecret,
-		new(psswd.PasswordHash),
-	)
+	userService, userServiceErr := service.NewUserService(unitOfWork, jwtSecret)
 
 	if userServiceErr != nil {
 		return nil, fmt.Errorf("service factory: %s", userServiceErr.Error())

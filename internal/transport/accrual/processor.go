@@ -43,7 +43,7 @@ func New(svs Servicer, apiBaseURL string, l *logrus.Logger) *Processor {
 
 	return &Processor{
 		svs:               svs,
-		client:            client.NewHTTPClient(apiBaseURL),
+		client:            client.New(apiBaseURL),
 		l:                 loggerEntry,
 		limitPerIteration: defaultLimitPerIteration,
 		accrualWorkers:    defaultAccrualWorkers,
@@ -142,7 +142,7 @@ type workerResult struct {
 	Accrual  decimal.Decimal
 }
 
-// runWorkers запускает параллельных воркеров для получения данных о начислениях.
+// runWorkers запускает параллельных воркеров для получения данных о начислениях и ожидает конца их работы.
 // Реализует паттерн fan-out/fan-in для параллельной обработки запросов.
 func (p *Processor) runWorkers(ctx context.Context, orders []domain.Order) []workerResult {
 	var taskCh = make(chan *domain.Order, len(orders))
@@ -201,6 +201,7 @@ func (p *Processor) worker(
 	resultCh chan<- *workerResult,
 ) {
 	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -209,27 +210,49 @@ func (p *Processor) worker(
 			if !ok {
 				return
 			}
+			resultCh <- p.processWorkerTask(ctx, workerID, task)
+		}
+	}
+}
 
-			reqCtx, cancel := context.WithTimeout(ctx, defaultAPITimeout)
-			resp, err := p.client.GetOrderAccrual(reqCtx, task.OrderCode)
-			cancel()
-			if err != nil {
-				resultCh <- &workerResult{
-					WorkerID: workerID,
-					Order:    task,
-					Attempt:  task.Attempts,
-					Error:    err,
-				}
-				continue
-			}
+// processWorkerTask делает запрос на API системы начисления, в случае получения ошибки 429, ждет N секунд указанные
+// в заголовке ответа.
+func (p *Processor) processWorkerTask(ctx context.Context, workerID uint, task *domain.Order) *workerResult {
+	for {
+		reqCtx, cancel := context.WithTimeout(ctx, defaultAPITimeout)
+		resp, err := p.client.GetOrderAccrual(reqCtx, task.OrderCode)
+		cancel()
 
-			resultCh <- &workerResult{
+		// Проверяем ошибку на TooManyRequestError для повторной попытки
+		if err != nil {
+			result := workerResult{
 				WorkerID: workerID,
 				Order:    task,
-				Status:   resp.Status,
 				Attempt:  task.Attempts,
-				Accrual:  resp.Accrual,
 			}
+			var tooManyReq *client.TooManyRequestError
+			if errors.As(err, &tooManyReq) {
+				// Проверяем отмену контекста перед спячкой
+				select {
+				case <-ctx.Done():
+					result.Error = ctx.Err()
+					return &result
+				case <-time.After(tooManyReq.RetryAfter):
+					// После паузы делаем повторную попытку
+					continue
+				}
+			} else {
+				result.Error = err
+				return &result
+			}
+		}
+
+		return &workerResult{
+			WorkerID: workerID,
+			Order:    task,
+			Status:   resp.Status,
+			Attempt:  task.Attempts,
+			Accrual:  resp.Accrual,
 		}
 	}
 }

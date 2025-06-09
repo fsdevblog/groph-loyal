@@ -62,7 +62,7 @@ func (s *BalanceTransactionServiceTestSuite) TestGetUserBalance() {
 
 	s.mockBlRepo.EXPECT().
 		GetUserBalance(gomock.Any(), expected.UserID).
-		Return(&repoargs.BalanceSum{
+		Return(&repoargs.BalanceAggregation{
 			DebitAmount:  debitAmount,
 			CreditAmount: creditAmount,
 		}, nil)
@@ -79,7 +79,7 @@ func (s *BalanceTransactionServiceTestSuite) TestWithdraw_EnoughBalance() {
 	availableBalance := decimal.NewFromInt(10)
 
 	// на баланса 10 баллов.
-	balanceAgr := repoargs.BalanceSum{
+	balanceAgr := repoargs.BalanceAggregation{
 		DebitAmount:  decimal.NewFromInt(100),
 		CreditAmount: decimal.NewFromInt(90),
 	}

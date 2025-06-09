@@ -17,7 +17,7 @@ func NewBalanceTransactionRepository(conn sqlcgen.DBTX) *BalanceTransRepository 
 	return &BalanceTransRepository{q: sqlcgen.New(conn)}
 }
 
-// Create создает транзакцию. Возвращает оберную ошибку.
+// Create создает транзакцию. В случае конфликта OrderID + Direction вернет ошибку domain.ErrDuplicateKey.
 func (b *BalanceTransRepository) Create(
 	ctx context.Context,
 	transaction repoargs.BalanceTransactionCreate,
@@ -62,12 +62,12 @@ func (b *BalanceTransRepository) BatchCreate(
 func (b *BalanceTransRepository) GetUserBalance(
 	ctx context.Context,
 	userID int64,
-) (*repoargs.BalanceSum, error) {
+) (*repoargs.BalanceAggregation, error) {
 	stats, err := b.q.BalanceTransaction_SumByUserID(ctx, userID)
 	if err != nil {
 		return nil, convertErr(err, "getting balance sum by userID %d", userID)
 	}
-	var sum = new(repoargs.BalanceSum)
+	var sum = new(repoargs.BalanceAggregation)
 	for _, row := range stats {
 		if row.Direction == sqlcgen.BalanceTransactionTypeCredit {
 			sum.CreditAmount = row.Sum

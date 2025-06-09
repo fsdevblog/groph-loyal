@@ -101,6 +101,58 @@ func (s *ProcessorTestSuite) TestProcess_ErrorAccrualReq() {
 	s.NoError(err)
 }
 
+// TestProcess_TooManyRequestsErrorAccrualReq Тест на случай, когда есть заказы, но ошибка 429.
+func (s *ProcessorTestSuite) TestProcess_TooManyRequestsErrorAccrualReq() {
+	// Создаем тестовые данные
+	testOrders := []domain.Order{
+		{ID: 1, OrderCode: "ORDER-001", UserID: 100, Status: domain.OrderStatusNew},
+	}
+
+	// Настраиваем мок-сервис для возврата тестовых заказов.
+	s.mockService.EXPECT().
+		OrdersForAccrualMonitoring(gomock.Any(), s.processor.limitPerIteration).
+		Return(testOrders, nil)
+
+	// Настраиваем мок-хттп-клиент для имитации ошибки 429. Воркер должен обратиться к моку 2 раза.
+	callCount := 0
+	delay := time.Second
+	var firstCall time.Time
+
+	s.mockHTTPClient.EXPECT().
+		GetOrderAccrual(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, orderCode string) (*client.Response, error) {
+			callCount++
+			if callCount == 1 {
+				firstCall = time.Now()
+				// при первом обращении возвращаем ошибку 429.
+				return nil, client.NewTooManyRequestError(delay)
+			}
+			delayBetweenCalls := time.Since(firstCall)
+			epsilon := 100 * time.Millisecond // допустимая погрешность для теста
+
+			s.LessOrEqualf(delayBetweenCalls, delay+epsilon,
+				"expected delay between calls %.2f <= %.2f", delayBetweenCalls.Seconds(), (delay + epsilon).Seconds())
+			// при втором обращении валидный ответ.
+			return &client.Response{
+				OrderCode: orderCode,
+				Status:    client.StatusProcessed,
+				Accrual:   decimal.NewFromInt(500),
+			}, nil
+		}).Times(2) // ожидаем 2 обращения.
+
+	// Настраиваем мок-сервис для обновления статуса заказа.
+	s.mockService.EXPECT().
+		UpdateAccrual(gomock.Any(), gomock.Any()).
+		Return(nil)
+
+	ctx, cancel := context.WithTimeout(s.T().Context(), time.Second)
+	defer cancel()
+	err := s.processor.process(ctx)
+
+	// Проверяем результаты
+	s.NoError(err)
+}
+
 // TestProcess_Success Тест на успешную обработку заказов.
 func (s *ProcessorTestSuite) TestProcess_Success() {
 	// Создаем тестовые данные
@@ -110,8 +162,8 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 	}
 
 	accrualResponses := []*client.Response{
-		{OrderCode: "ORDER-001", Status: "PROCESSED", Accrual: decimal.NewFromInt(500)},
-		{OrderCode: "ORDER-002", Status: "PROCESSING"},
+		{OrderCode: "ORDER-001", Status: client.StatusProcessed, Accrual: decimal.NewFromInt(500)},
+		{OrderCode: "ORDER-002", Status: client.StatusProcessing},
 	}
 
 	// Настраиваем мок-сервис для возврата тестовых заказов.

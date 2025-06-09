@@ -7,7 +7,7 @@ type CreateUser struct {
 	Password string
 }
 
-type BalanceSum struct {
+type BalanceAggregation struct {
 	DebitAmount  decimal.Decimal
 	CreditAmount decimal.Decimal
 }

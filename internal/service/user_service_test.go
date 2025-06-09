@@ -45,7 +45,11 @@ func (s *UserServiceTestSuite) SetupTest() {
 		Return(s.mockUserRepo, nil).AnyTimes()
 
 	// Инициализация сервиса.
-	userService, servErr := NewUserService(s.mockUOW, s.jwtSecret, s.mockPsswd)
+	userService, servErr := NewUserService(s.mockUOW, s.jwtSecret)
+
+	// заменяем хешер пароля на мок
+	userService.psswdHasher = s.mockPsswd
+
 	s.Require().NoError(servErr)
 	s.userService = userService
 }

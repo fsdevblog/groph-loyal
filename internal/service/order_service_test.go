@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -205,13 +206,20 @@ func (s *OrderServiceTestSuite) TestCreate() {
 		},
 	}
 
+	var dupOrderError *domain.DuplicateOrderError
 	for _, t := range cases {
 		s.Run(t.name, func() {
 			order, err := s.orderService.Create(s.T().Context(), t.userID, t.orderCode)
 
 			if t.wantErrType != nil {
 				s.Require().Error(err)
-				s.Require().ErrorAs(err, &t.wantErrType) //nolint:testifylint
+				switch {
+				case errors.As(t.wantErrType, &dupOrderError):
+					s.Require().ErrorAs(err, &dupOrderError)
+				default:
+					s.FailNow("unexpected error type")
+				}
+
 				return
 			}
 

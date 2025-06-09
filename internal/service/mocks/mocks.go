@@ -291,10 +291,10 @@ func (mr *MockBalanceTransactionRepositoryMockRecorder) GetByDirection(ctx, user
 }
 
 // GetUserBalance mocks base method.
-func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceSum, error) {
+func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceAggregation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
-	ret0, _ := ret[0].(*repoargs.BalanceSum)
+	ret0, _ := ret[0].(*repoargs.BalanceAggregation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

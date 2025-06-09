@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -13,6 +14,12 @@ import (
 )
 
 const RouteOrderAccrual = "/api/orders/%s"
+
+// Константы минимального и максимально значения в заголовке Retry-After.
+const (
+	minRetryAfter = 1
+	maxRetryAfter = 120
+)
 
 type StatusType string
 
@@ -35,7 +42,7 @@ type HTTPClient struct {
 	httpClient *http.Client
 }
 
-func NewHTTPClient(baseURL string) HTTPClient {
+func New(baseURL string) HTTPClient {
 	return HTTPClient{
 		baseURL:    baseURL,
 		httpClient: http.DefaultClient,
@@ -43,7 +50,8 @@ func NewHTTPClient(baseURL string) HTTPClient {
 }
 
 // GetOrderAccrual получает информацию о начислении баллов для заказа.
-// При ответе сервера со статусом отличным от http.StatusOK, возвращает ошибку StatusCodeErr
+// При ответе сервера со статусом отличным от http.StatusOK, возвращает ошибку StatusCodeErr, или
+// TooManyRequestError в случае http.StatusTooManyRequests.
 //
 //nolint:nonamedreturns
 func (c HTTPClient) GetOrderAccrual(
@@ -70,6 +78,22 @@ func (c HTTPClient) GetOrderAccrual(
 			err = errors.Join(err, closeErr)
 		}
 	}()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		minValue := decimal.NewFromInt(minRetryAfter)
+		maxValue := decimal.NewFromInt(maxRetryAfter)
+
+		retryAfterStr := resp.Header.Get("Retry-After")
+
+		retryAfter, parseErr := decimal.NewFromString(retryAfterStr)
+		if parseErr != nil || retryAfter.LessThan(minValue) || retryAfter.GreaterThan(maxValue) {
+			// в случае ошибки или неверных данных ставим 60 секунд
+			retryAfter = decimal.NewFromInt(60) //nolint:mnd
+		}
+
+		ra := time.Duration(retryAfter.IntPart()) * time.Second
+		return nil, NewTooManyRequestError(ra)
+	}
 
 	// Статус отличный от http.StatusOK нас не интересует.
 	if resp.StatusCode != http.StatusOK {

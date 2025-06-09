@@ -42,7 +42,7 @@ type BalanceTransactionRepository interface {
 		transactions []repoargs.BalanceTransactionCreate,
 		fn repoargs.BatchExecQueryRow,
 	)
-	GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceSum, error)
+	GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceAggregation, error)
 	Create(ctx context.Context, transaction repoargs.BalanceTransactionCreate) (*domain.BalanceTransaction, error)
 	GetByDirection(
 		ctx context.Context,

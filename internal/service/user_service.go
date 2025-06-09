@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
+
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
@@ -23,7 +25,7 @@ type UserService struct {
 	jwtTokenSecret []byte
 }
 
-func NewUserService(u uow.UOW, jwtTokenSecret []byte, psswdHasher PasswordHasher) (*UserService, error) {
+func NewUserService(u uow.UOW, jwtTokenSecret []byte) (*UserService, error) {
 	userRepo, userRepoErr := uow.GetRepositoryAs[UserRepository](u, uow.RepositoryName(repoargs.UserRepoName))
 	if userRepoErr != nil {
 		return nil, userRepoErr
@@ -32,7 +34,7 @@ func NewUserService(u uow.UOW, jwtTokenSecret []byte, psswdHasher PasswordHasher
 		uow:            u,
 		userRepo:       userRepo,
 		jwtTokenSecret: jwtTokenSecret,
-		psswdHasher:    psswdHasher,
+		psswdHasher:    new(psswd.PasswordHash),
 	}, nil
 }
 

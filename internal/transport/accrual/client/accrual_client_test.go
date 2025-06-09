@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,7 +29,7 @@ func (s *ClientTestSuite) TearDownTest() {
 }
 
 // TestGetOrderAccrual_Success Тест на успешный ответ с начисленными баллами.
-func (s *ClientTestSuite) TestGetOrderAccrual() {
+func (s *ClientTestSuite) TestGetOrderAccrual() { //nolint:gocognit
 	type tcase struct {
 		name         string
 		orderCode    string
@@ -58,7 +59,7 @@ func (s *ClientTestSuite) TestGetOrderAccrual() {
 			orderCode:    "11111113",
 			httpStatus:   http.StatusTooManyRequests,
 			wantResponse: nil,
-			wantErrType:  new(StatusCodeError),
+			wantErrType:  new(TooManyRequestError),
 		}, {
 			name:         "internal error",
 			orderCode:    "11111114",
@@ -102,16 +103,27 @@ func (s *ClientTestSuite) TestGetOrderAccrual() {
 
 	s.server = httptest.NewServer(http.HandlerFunc(serverHandler()))
 
+	var statusCodeError *StatusCodeError
+	var tooManyRequestError *TooManyRequestError
+
 	for _, t := range cases {
 		s.Run(t.name, func() {
-			client := NewHTTPClient(s.server.URL)
+			client := New(s.server.URL)
 			response, err := client.GetOrderAccrual(s.T().Context(), t.orderCode)
 
 			if t.wantErrType != nil {
 				s.Require().Error(err)
-				s.Require().ErrorAs(err, &t.wantErrType) //nolint:testifylint
+				switch {
+				case errors.As(t.wantErrType, &statusCodeError):
+					s.Require().ErrorAs(err, &statusCodeError)
+				case errors.As(t.wantErrType, &tooManyRequestError):
+					s.Require().ErrorAs(err, &tooManyRequestError)
+				default:
+					s.FailNow("unexpected err type")
+				}
 				return
 			}
+
 			s.Require().NoError(err)
 			s.NotNil(response)
 			s.Equal(t.wantResponse, response)
