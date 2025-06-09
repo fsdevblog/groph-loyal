@@ -51,6 +51,8 @@ func (a *App) Run() error {
 	if connErr != nil {
 		return connErr
 	}
+	defer conn.Close()
+
 
 	unitOfWork, uowErr := initUOW(conn)
 	if uowErr != nil {
