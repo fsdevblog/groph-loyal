@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"sync"
+	"time"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 func Connect(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (*pgxpool.Pool, error) {

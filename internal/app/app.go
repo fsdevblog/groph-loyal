@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual"
@@ -44,7 +45,7 @@ func (a *App) Run() error {
 	a.Logger.Infof("Starting app with config: %+v", a.Config)
 	conn, connErr := pgrepo.Connect(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
 	if connErr != nil {
-		return connErr
+		return fmt.Errorf("app run: %s", connErr.Error())
 	}
 	defer conn.Close()
 

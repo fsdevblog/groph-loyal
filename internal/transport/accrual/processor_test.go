@@ -52,7 +52,7 @@ func TestProcessorSuite(t *testing.T) {
 func (s *ProcessorTestSuite) TestProcess_NoOrders() {
 	s.mockService.EXPECT().
 		OrdersForAccrualMonitoring(gomock.Any(), s.processor.limitPerIteration).
-		Return([]domain.Order{}, ErrNoOrders)
+		Return([]domain.Order{}, nil)
 
 	err := s.processor.process(s.T().Context())
 
