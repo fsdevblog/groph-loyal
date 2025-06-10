@@ -91,7 +91,7 @@ func (a *App) Run() error {
 }
 
 func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
-	unitOfWork := uow.NewUnitOfWork(conn)
+	unitOfWork := uow.New(conn)
 	numberOfRepos := 3
 
 	var reposMap = make(map[uow.RepositoryName]uow.RepositoryFactory, numberOfRepos)

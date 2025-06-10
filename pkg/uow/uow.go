@@ -17,7 +17,7 @@ type UnitOfWork struct {
 	repositories map[RepositoryName]RepositoryFactory
 }
 
-func NewUnitOfWork(conn *pgxpool.Pool) *UnitOfWork {
+func New(conn *pgxpool.Pool) *UnitOfWork {
 	return &UnitOfWork{
 		conn:         conn,
 		repositories: make(map[RepositoryName]RepositoryFactory),
