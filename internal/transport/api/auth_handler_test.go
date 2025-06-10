@@ -24,16 +24,16 @@ import (
 type AuthHandlerTestSuite struct {
 	suite.Suite
 	mockUserService *mocks.MockUserServicer
+	ctrl            *gomock.Controller
 	router          *gin.Engine
 	config          *config.Config
 	jwtSecret       []byte
 }
 
 func (s *AuthHandlerTestSuite) SetupTest() {
-	mockCtrl := gomock.NewController(s.T())
-	defer mockCtrl.Finish()
+	s.ctrl = gomock.NewController(s.T())
 
-	s.mockUserService = mocks.NewMockUserServicer(mockCtrl)
+	s.mockUserService = mocks.NewMockUserServicer(s.ctrl)
 	s.config = &config.Config{
 		RunAddress: "localhost:80",
 	}
@@ -44,6 +44,10 @@ func (s *AuthHandlerTestSuite) SetupTest() {
 		UserService:  s.mockUserService,
 		JWTSecretKey: s.jwtSecret,
 	})
+}
+
+func (s *AuthHandlerTestSuite) TearDownTest() {
+	s.ctrl.Finish()
 }
 
 func TestAuthHandlerSuite(t *testing.T) {
@@ -66,22 +70,22 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 
 	var cases = []struct {
 		name        string
-		args        *UserRegisterParams
+		args        *UserRegisterRequest
 		jwtTokenStr *string
 		wantStatus  int
 	}{
 		{
 			name:       "user created",
-			args:       &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:       &UserRegisterRequest{Username: argsOk.Username, Password: argsOk.Password},
 			wantStatus: http.StatusOK,
 		}, {
 			name:        "user already logged in",
-			args:        &UserRegisterParams{Username: argsOk.Username, Password: argsOk.Password},
+			args:        &UserRegisterRequest{Username: argsOk.Username, Password: argsOk.Password},
 			wantStatus:  http.StatusUnauthorized,
 			jwtTokenStr: &jwtTokenStr,
 		}, {
 			name:       "duplicate username",
-			args:       &UserRegisterParams{Username: argsDup.Username, Password: argsDup.Password},
+			args:       &UserRegisterRequest{Username: argsDup.Username, Password: argsDup.Password},
 			wantStatus: http.StatusConflict,
 		}, {
 			name:       "bad request",
@@ -89,14 +93,14 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 			wantStatus: http.StatusBadRequest,
 		}, {
 			name: "empty username",
-			args: &UserRegisterParams{
+			args: &UserRegisterRequest{
 				Username: argsIncorrectUsername.Username,
 				Password: argsIncorrectUsername.Password,
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 		}, {
 			name: "empty password",
-			args: &UserRegisterParams{
+			args: &UserRegisterRequest{
 				Username: argsIncorrectPassword.Username,
 				Password: argsIncorrectPassword.Password,
 			},

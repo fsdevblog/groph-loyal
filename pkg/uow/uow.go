@@ -42,11 +42,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(context.Context, TX) error)
 	}
 	defer func() {
 		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			if err == nil {
-				err = rollbackErr
-			} else {
-				err = errors.Join(err, rollbackErr)
-			}
+			err = errors.Join(err, rollbackErr)
 		}
 	}()
 

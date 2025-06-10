@@ -28,29 +28,31 @@ func statusErrorText(status int) string {
 
 func Errors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Next()
+		c.Next() // Сначала обработаем все остальные middleware и хендлеры. Соберем ошибки..
 
 		if len(c.Errors) == 0 {
 			return
 		}
 
-		// обрабатываем только первую ошибку
+		// Обрабатываем только первую ошибку. В будущем, додумаю как отображать все ошибки.
 		firstErr := c.Errors[0]
 		var msg string
+		// публичную ошибку отображаем
 		if firstErr.IsType(gin.ErrorTypePublic) {
 			msg = firstErr.Error()
 		} else {
+			// Для любого другого типа ошибки - отображаем заглушку.
+			// Планируется доработать, чтоб внятно отображать bind ошибки валидатора, а пока просто оставлю заглушку.
 			msg = statusErrorText(c.Writer.Status())
 		}
 
+		// отображаем ошибку в json или текстовом виде, в зависимости от заголовков запроса.
 		accept := c.GetHeader("Accept")
 		contentType := c.GetHeader("Content-Type")
 		switch {
 		case strings.Contains(accept, "application/json"),
 			strings.Contains(contentType, "application/json"):
 			c.JSON(c.Writer.Status(), gin.H{"error": msg})
-		case strings.Contains(accept, "text/plain"):
-			c.String(c.Writer.Status(), msg)
 		default:
 			c.String(c.Writer.Status(), msg)
 		}

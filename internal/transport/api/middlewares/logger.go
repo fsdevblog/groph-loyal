@@ -9,8 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// LoggerMiddleware должен быть первый в стеке миддлваре.
-func LoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
+// Logger должен быть первый в стеке миддлваре.
+func Logger(logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if logger == nil {
 			c.Next()

@@ -27,6 +27,7 @@ type OrderHandlerTestSuite struct {
 	config           *config.Config
 	mockOrderService *mocks.MockOrderServicer
 	jwtSecret        []byte
+	ctrl             *gomock.Controller
 }
 
 func TestOrderHandlerSuite(t *testing.T) {
@@ -34,14 +35,13 @@ func TestOrderHandlerSuite(t *testing.T) {
 }
 
 func (s *OrderHandlerTestSuite) SetupTest() {
-	mockCtrl := gomock.NewController(s.T())
-	defer mockCtrl.Finish()
+	s.ctrl = gomock.NewController(s.T())
 
 	s.config = &config.Config{
 		RunAddress: "localhost:80",
 	}
 
-	s.mockOrderService = mocks.NewMockOrderServicer(mockCtrl)
+	s.mockOrderService = mocks.NewMockOrderServicer(s.ctrl)
 	s.jwtSecret = []byte("super secret key")
 
 	s.router = New(RouterArgs{
@@ -49,6 +49,10 @@ func (s *OrderHandlerTestSuite) SetupTest() {
 		OrderService: s.mockOrderService,
 		JWTSecretKey: s.jwtSecret,
 	})
+}
+
+func (s *OrderHandlerTestSuite) TearDownTest() {
+	s.ctrl.Finish()
 }
 
 func (s *OrderHandlerTestSuite) TestCreateOrder() {

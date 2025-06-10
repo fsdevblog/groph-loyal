@@ -34,7 +34,7 @@ func New(args RouterArgs) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	if args.Logger != nil {
-		r.Use(middlewares.LoggerMiddleware(args.Logger))
+		r.Use(middlewares.Logger(args.Logger))
 	}
 	r.Use(middlewares.Errors())
 
@@ -44,10 +44,10 @@ func New(args RouterArgs) *gin.Engine {
 
 	api := r.Group(RouteGroup)
 
-	api.POST(RegisterRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Register)
-	api.POST(LoginRoute, middlewares.NonAuthRequiredMiddleware(args.JWTSecretKey), authHandler.Login)
+	api.POST(RegisterRoute, middlewares.NonAuthRequired(args.JWTSecretKey), authHandler.Register)
+	api.POST(LoginRoute, middlewares.NonAuthRequired(args.JWTSecretKey), authHandler.Login)
 
-	api.Use(middlewares.AuthRequiredMiddleware(args.JWTSecretKey))
+	api.Use(middlewares.AuthRequired(args.JWTSecretKey))
 	// ниже все роуты группы требуют авторизованного пользователя.
 	api.POST(OrdersRoute, ordersHandler.Create)
 	api.GET(OrdersRoute, ordersHandler.Index)

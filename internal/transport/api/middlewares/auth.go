@@ -32,9 +32,9 @@ func checkAuthorization(c *gin.Context, jwtTokenSecret []byte) (*jwt.Token, erro
 	return token, nil
 }
 
-// AuthRequiredMiddleware проверяет, что запрос авторизован. Записывает в контекст (поле CurrentUserIDKey)
+// AuthRequired проверяет, что запрос авторизован. Записывает в контекст (поле CurrentUserIDKey)
 // id юзера.
-func AuthRequiredMiddleware(jwtTokenSecret []byte) gin.HandlerFunc {
+func AuthRequired(jwtTokenSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := checkAuthorization(c, jwtTokenSecret)
 		if err != nil {
@@ -56,8 +56,8 @@ func AuthRequiredMiddleware(jwtTokenSecret []byte) gin.HandlerFunc {
 	}
 }
 
-// NonAuthRequiredMiddleware пропускает запросы без токена или с недействительным токеном.
-func NonAuthRequiredMiddleware(jwtTokenSecret []byte) gin.HandlerFunc {
+// NonAuthRequired пропускает запросы без токена или с недействительным токеном.
+func NonAuthRequired(jwtTokenSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, err := checkAuthorization(c, jwtTokenSecret)
 		if err == nil {

@@ -22,22 +22,24 @@ func NewAuthHandler(userService UserServicer) *AuthHandler {
 	}
 }
 
-type UserRegisterParams struct {
-	Username string `binding:"required,min=1,max=15"  form:"login"    json:"login"`
-	Password string `binding:"required,min=6,max=255" form:"password" json:"password"`
+// UserRegisterRequest запрос на регистрацию юзера.
+type UserRegisterRequest struct {
+	Username string `binding:"required,min=1,max=15"  json:"login"`
+	Password string `binding:"required,min=6,max=255" json:"password"`
 }
 
 // Register POST RouteGroup + RegisterRoute. Регистрирует пользователя и аутентифицирует его.
 func (h *AuthHandler) Register(c *gin.Context) {
-	var params UserRegisterParams
+	var params UserRegisterRequest
 	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
 		var valErrs validator.ValidationErrors
 		if errors.As(bindErr, &valErrs) {
-			c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"error": valErrs})
+			_ = c.AbortWithError(http.StatusUnprocessableEntity, bindErr).
+				SetType(gin.ErrorTypeBind)
 			return
 		}
-		_ = c.AbortWithError(http.StatusBadRequest, bindErr).
-			SetType(gin.ErrorTypeBind)
+		_ = c.AbortWithError(http.StatusBadRequest, errors.New("invalid request body")).
+			SetType(gin.ErrorTypePublic)
 		return
 	}
 
@@ -63,11 +65,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.AbortWithStatus(http.StatusOK)
 }
 
+// UserLoginParams запрос на аутентификацию юзера.
 type UserLoginParams struct {
 	Username string `binding:"required,min=1,max=15"  json:"login"`
 	Password string `binding:"required,min=6,max=255" json:"password"`
 }
 
+// UserResponse ответ при успешной аутентификации.
 type UserResponse struct {
 	ID        int64     `json:"ID"`
 	Username  string    `json:"login"`
@@ -94,11 +98,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrRecordNotFound) || errors.Is(err, domain.ErrPasswordMissMatch) {
-			_ = c.Error(err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("invalid credentials")).
+				SetType(gin.ErrorTypePublic)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePublic)
+		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
 		return
 	}
 	c.Header("Authorization", "Bearer "+token)

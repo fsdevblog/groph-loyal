@@ -8,7 +8,7 @@ import (
 )
 
 // getUserIDFromContext берет из контекста gin ID текущего юзера. ID устанавливается в
-// middlewares.AuthRequiredMiddleware. В случае, если значения в контексте нет или ошибка утверждения типа -
+// middlewares.AuthRequired. В случае, если значения в контексте нет или ошибка утверждения типа -
 // вернется 0.
 func getUserIDFromContext(c *gin.Context) int64 {
 	userIDStr, exist := c.Get(middlewares.CurrentUserIDKey)
