@@ -41,6 +41,7 @@ func Connect(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (
 						connChan <- connResult{
 							err: fmt.Errorf("init postgres connection after %d attempts: %w", maxAttempts, connErr),
 						}
+						return
 					}
 					l.WithError(connErr).
 						WithField("CurrentAttempt", fmt.Sprintf("#%d / %d", attempts, maxAttempts)).

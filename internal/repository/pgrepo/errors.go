@@ -34,15 +34,15 @@ func convertErr(err error, format string, formatArgs ...any) error {
 	}
 
 	var pgErr *pgconn.PgError
+	errType := domain.ErrUnknown
+
 	if errors.As(err, &pgErr) {
-		errType := domain.ErrUnknown
 		if isUniqueViolationErr(pgErr) {
 			errType = domain.ErrDuplicateKey
 		}
-		return fmt.Errorf("[repository/%s] %w: %s", msg, errType, pgErr.Message)
 	}
 
-	return fmt.Errorf("[repository/%s] %w: %s", msg, domain.ErrUnknown, err.Error())
+	return fmt.Errorf("[repository/%s] %w: %s", msg, errType, err.Error())
 }
 
 func isUniqueViolationErr(err *pgconn.PgError) bool {
