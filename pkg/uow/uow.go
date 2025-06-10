@@ -24,6 +24,17 @@ func NewUnitOfWork(conn *pgxpool.Pool) *UnitOfWork {
 	}
 }
 
+// MassRegister массовая регистрация репозиториев.
+func (u *UnitOfWork) MassRegister(repos map[RepositoryName]RepositoryFactory) error {
+	var massErr error
+	for name, factory := range repos {
+		if err := u.Register(name, factory); err != nil {
+			massErr = errors.Join(massErr, err)
+		}
+	}
+	return massErr
+}
+
 // Register регистрирует репозиторий у себя в мапе. Если репозиторий уже зарегистрирован, возвращает
 // ошибку ErrRepositoryAlreadyRegistered.
 func (u *UnitOfWork) Register(name RepositoryName, factory RepositoryFactory) error {

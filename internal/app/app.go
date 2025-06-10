@@ -92,32 +92,26 @@ func (a *App) Run() error {
 
 func initUOW(conn *pgxpool.Pool) (*uow.UnitOfWork, error) {
 	unitOfWork := uow.NewUnitOfWork(conn)
+	numberOfRepos := 3
+
+	var reposMap = make(map[uow.RepositoryName]uow.RepositoryFactory, numberOfRepos)
 
 	// user repo
-	userRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
+	reposMap[uow.RepositoryName(repoargs.UserRepoName)] = func(dbtx uow.DBTX) uow.Repository {
 		return pgrepo.NewUserRepository(dbtx)
 	}
-	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.UserRepoName), userRepoFactoryFn); regErr != nil {
-		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
-	}
-
 	// order repo
-	orderRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
+	reposMap[uow.RepositoryName(repoargs.OrderRepoName)] = func(dbtx uow.DBTX) uow.Repository {
 		return pgrepo.NewOrderRepository(dbtx)
-	}
-	if regErr := unitOfWork.Register(uow.RepositoryName(repoargs.OrderRepoName), orderRepoFactoryFn); regErr != nil {
-		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
 	}
 
 	// balance transaction repo
-	balanceTransactionRepoFactoryFn := func(dbtx uow.DBTX) uow.Repository {
+	reposMap[uow.RepositoryName(repoargs.BalanceTransactionRepoName)] = func(dbtx uow.DBTX) uow.Repository {
 		return pgrepo.NewBalanceTransactionRepository(dbtx)
 	}
-	if regErr := unitOfWork.Register(
-		uow.RepositoryName(repoargs.BalanceTransactionRepoName),
-		balanceTransactionRepoFactoryFn,
-	); regErr != nil {
-		return nil, fmt.Errorf("init UOW: %s", regErr.Error())
+
+	if err := unitOfWork.MassRegister(reposMap); err != nil {
+		return nil, fmt.Errorf("init uow: %s", err.Error())
 	}
 
 	return unitOfWork, nil
