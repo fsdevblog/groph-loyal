@@ -18,7 +18,7 @@ func main() {
 	if err := app.New(conf, l).Run(); err != nil {
 		if errors.Is(err, context.Canceled) {
 			l.Info("graceful shutdown")
-			os.Exit(0)
+			return
 		}
 		panic(err)
 	}

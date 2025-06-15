@@ -60,13 +60,17 @@ func (a *App) Run() error {
 		return fmt.Errorf("app run: %s", sErr.Error())
 	}
 
-	router := api.New(api.RouterArgs{
+	router, routerErr := api.New(api.RouterArgs{
 		Logger:       a.Logger,
 		UserService:  services.UserService,
 		OrderService: services.OrderService,
 		BlService:    services.BlService,
 		JWTSecretKey: []byte(a.Config.JWTUserSecret),
 	})
+
+	if routerErr != nil {
+		return fmt.Errorf("app run: %s", routerErr.Error())
+	}
 
 	errChan := make(chan error, 1)
 

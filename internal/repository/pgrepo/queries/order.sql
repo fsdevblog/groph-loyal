@@ -23,8 +23,9 @@ LIMIT @_limit;
 -- name: Orders_IncrementAttempts :batchexec
 UPDATE orders
 SET attempts = attempts + 1,
-    next_attempt_at = $1
+    next_attempt_at = $1,
+    updated_at = NOW()
 WHERE id = $2;
 
 -- name: Orders_UpdateWithAccrualData :batchone
-UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING *;
+UPDATE orders SET status = $1, accrual = $2, updated_at = NOW() WHERE id = $3 RETURNING *;

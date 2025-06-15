@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
-	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -39,7 +40,7 @@ func (s *AuthHandlerTestSuite) SetupTest() {
 	}
 	s.jwtSecret = []byte("super secret key")
 
-	s.router = New(RouterArgs{
+	s.router = MustNew(RouterArgs{
 		Logger:       logger.New(os.Stdout),
 		UserService:  s.mockUserService,
 		JWTSecretKey: s.jwtSecret,
@@ -55,6 +56,7 @@ func TestAuthHandlerSuite(t *testing.T) {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister() {
+	maxPasswordLength := 72
 	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
 	s.Require().NoError(jwtErr)
 
@@ -62,11 +64,13 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
 	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: "password"}
 	argsIncorrectPassword := service.RegisterUserArgs{Username: "test"}
+	argsTooLongPassword := service.RegisterUserArgs{
+		Username: "test",
+		Password: testutils.GenerateOverBytesUnderRunes(maxPasswordLength),
+	}
 
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsOk).Return(&domain.User{}, jwtTokenStr, nil)
 	s.mockUserService.EXPECT().Register(gomock.Any(), argsDup).Return(nil, "", domain.ErrDuplicateKey)
-	s.mockUserService.EXPECT().Register(gomock.Any(), argsIncorrectUsername).Times(0)
-	s.mockUserService.EXPECT().Register(gomock.Any(), argsIncorrectPassword).Times(0)
 
 	var cases = []struct {
 		name        string
@@ -103,6 +107,13 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 			args: &UserRegisterRequest{
 				Username: argsIncorrectPassword.Username,
 				Password: argsIncorrectPassword.Password,
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		}, {
+			name: "password too long in bytes",
+			args: &UserRegisterRequest{
+				Username: argsTooLongPassword.Username,
+				Password: argsTooLongPassword.Password,
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 		},

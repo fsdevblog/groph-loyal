@@ -17,19 +17,18 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	var flagsConfig, envConfig Config
+	var conf Config
 
-	if envParseErr := env.Parse(&envConfig); envParseErr != nil {
+	loadFlags(&conf)
+
+	if envParseErr := env.Parse(&conf); envParseErr != nil {
 		return nil, fmt.Errorf("parse env config: %s", envParseErr.Error())
 	}
 
-	loadFlags(&flagsConfig)
-
-	conf := mergeConfig(&envConfig, &flagsConfig)
 	if conf.DatabaseDSN == "" {
 		return nil, errors.New("database DSN is not set")
 	}
-	return conf, nil
+	return &conf, nil
 }
 
 func MustLoadConfig() *Config {
@@ -52,21 +51,4 @@ func loadFlags(flagConfig *Config) {
 	)
 
 	flag.Parse()
-}
-
-func mergeConfig(envConfig, flagsConfig *Config) *Config {
-	return &Config{
-		RunAddress:           defaultIfBlank(envConfig.RunAddress, flagsConfig.RunAddress),
-		DatabaseDSN:          defaultIfBlank(envConfig.DatabaseDSN, flagsConfig.DatabaseDSN),
-		MigrationsDir:        defaultIfBlank(envConfig.MigrationsDir, flagsConfig.MigrationsDir),
-		AccrualSystemAddress: defaultIfBlank(envConfig.AccrualSystemAddress, flagsConfig.AccrualSystemAddress),
-		JWTUserSecret:        envConfig.JWTUserSecret,
-	}
-}
-
-func defaultIfBlank(value string, defaultValue string) string {
-	if value == "" {
-		return defaultValue
-	}
-	return value
 }

@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

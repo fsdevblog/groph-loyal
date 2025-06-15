@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
@@ -15,7 +17,6 @@ import (
 	"github.com/fsdevblog/groph-loyal/internal/logger"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
-	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -44,7 +45,7 @@ func (s *OrderHandlerTestSuite) SetupTest() {
 	s.mockOrderService = mocks.NewMockOrderServicer(s.ctrl)
 	s.jwtSecret = []byte("super secret key")
 
-	s.router = New(RouterArgs{
+	s.router = MustNew(RouterArgs{
 		Logger:       logger.New(os.Stdout),
 		OrderService: s.mockOrderService,
 		JWTSecretKey: s.jwtSecret,

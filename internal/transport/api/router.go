@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/middlewares"
@@ -30,7 +31,18 @@ type RouterArgs struct {
 	JWTSecretKey []byte
 }
 
-func New(args RouterArgs) *gin.Engine {
+func MustNew(args RouterArgs) *gin.Engine {
+	r, err := New(args)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func New(args RouterArgs) (*gin.Engine, error) {
+	if err := registerValidators(); err != nil {
+		return nil, fmt.Errorf("initialize router: %s", err.Error())
+	}
 	r := gin.New()
 	r.Use(gin.Recovery())
 	if args.Logger != nil {
@@ -55,5 +67,5 @@ func New(args RouterArgs) *gin.Engine {
 	api.GET(BalanceRoute, balanceHandler.Index)
 	api.POST(BalanceWithdrawRoute, balanceHandler.Withdraw)
 	api.GET(WithdrawalsRoute, balanceHandler.Withdrawals)
-	return r
+	return r, nil
 }

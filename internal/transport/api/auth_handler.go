@@ -24,8 +24,8 @@ func NewAuthHandler(userService UserServicer) *AuthHandler {
 
 // UserRegisterRequest запрос на регистрацию юзера.
 type UserRegisterRequest struct {
-	Username string `binding:"required,min=1,max=15"  json:"login"`
-	Password string `binding:"required,min=6,max=255" json:"password"`
+	Username string `binding:"required,min=1,max=15"       json:"login"`
+	Password string `binding:"required,min=6,max_bytes=72" json:"password"`
 }
 
 // Register POST RouteGroup + RegisterRoute. Регистрирует пользователя и аутентифицирует его.
@@ -67,8 +67,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // UserLoginParams запрос на аутентификацию юзера.
 type UserLoginParams struct {
-	Username string `binding:"required,min=1,max=15"  json:"login"`
-	Password string `binding:"required,min=6,max=255" json:"password"`
+	Username string `binding:"required,min=1,max=15"       json:"login"`
+	Password string `binding:"required,min=6,max_bytes=72" json:"password"`
 }
 
 // UserResponse ответ при успешной аутентификации.

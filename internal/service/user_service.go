@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+
 	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
 
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
-
-	"github.com/fsdevblog/groph-loyal/internal/transport/api/tokens"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 )

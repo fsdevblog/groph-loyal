@@ -79,7 +79,8 @@ func (b *BalanceTransaction_CreateBatchBatchResults) Close() error {
 const orders_IncrementAttempts = `-- name: Orders_IncrementAttempts :batchexec
 UPDATE orders
 SET attempts = attempts + 1,
-    next_attempt_at = $1
+    next_attempt_at = $1,
+    updated_at = NOW()
 WHERE id = $2
 `
 
@@ -129,7 +130,7 @@ func (b *Orders_IncrementAttemptsBatchResults) Close() error {
 }
 
 const orders_UpdateWithAccrualData = `-- name: Orders_UpdateWithAccrualData :batchone
-UPDATE orders SET status = $1, accrual = $2 WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at
+UPDATE orders SET status = $1, accrual = $2, updated_at = NOW() WHERE id = $3 RETURNING id, created_at, updated_at, user_id, order_code, status, accrual, attempts, next_attempt_at
 `
 
 type Orders_UpdateWithAccrualDataBatchResults struct {

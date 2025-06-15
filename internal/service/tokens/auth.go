@@ -53,17 +53,13 @@ func generateJWT(claims jwt.Claims, key []byte) (string, error) {
 func validateJWT(tokenString string, claims jwt.Claims, key []byte) (*jwt.Token, error) {
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (any, error) {
 		return key, nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}))
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired
 		}
 		return nil, fmt.Errorf("parsing jwt token `%s`: %w", tokenString, err)
-	}
-
-	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-		return nil, errors.New("unexpected signing method")
 	}
 
 	return token, nil
