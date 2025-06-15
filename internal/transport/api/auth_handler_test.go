@@ -1,0 +1,232 @@
+package api
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+
+	"github.com/fsdevblog/groph-loyal/internal/config"
+	"github.com/fsdevblog/groph-loyal/internal/domain"
+	"github.com/fsdevblog/groph-loyal/internal/logger"
+	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
+	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
+	"github.com/gin-gonic/gin"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/suite"
+)
+
+type AuthHandlerTestSuite struct {
+	suite.Suite
+	mockUserService *mocks.MockUserServicer
+	ctrl            *gomock.Controller
+	router          *gin.Engine
+	config          *config.Config
+	jwtSecret       []byte
+}
+
+func (s *AuthHandlerTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+
+	s.mockUserService = mocks.NewMockUserServicer(s.ctrl)
+	s.config = &config.Config{
+		RunAddress: "localhost:80",
+	}
+	s.jwtSecret = []byte("super secret key")
+
+	s.router = MustNew(RouterArgs{
+		Logger:       logger.New(os.Stdout),
+		UserService:  s.mockUserService,
+		JWTSecretKey: s.jwtSecret,
+	})
+}
+
+func (s *AuthHandlerTestSuite) TearDownTest() {
+	s.ctrl.Finish()
+}
+
+func TestAuthHandlerSuite(t *testing.T) {
+	suite.Run(t, new(AuthHandlerTestSuite))
+}
+
+func (s *AuthHandlerTestSuite) TestRegister() {
+	maxPasswordLength := 72
+	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(jwtErr)
+
+	argsOk := service.RegisterUserArgs{Username: "test", Password: "password"}
+	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
+	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: "password"}
+	argsIncorrectPassword := service.RegisterUserArgs{Username: "test"}
+	argsTooLongPassword := service.RegisterUserArgs{
+		Username: "test",
+		Password: testutils.GenerateOverBytesUnderRunes(maxPasswordLength),
+	}
+
+	s.mockUserService.EXPECT().Register(gomock.Any(), argsOk).Return(&domain.User{}, jwtTokenStr, nil)
+	s.mockUserService.EXPECT().Register(gomock.Any(), argsDup).Return(nil, "", domain.ErrDuplicateKey)
+
+	var cases = []struct {
+		name        string
+		args        *UserRegisterRequest
+		jwtTokenStr *string
+		wantStatus  int
+	}{
+		{
+			name:       "user created",
+			args:       &UserRegisterRequest{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus: http.StatusOK,
+		}, {
+			name:        "user already logged in",
+			args:        &UserRegisterRequest{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus:  http.StatusUnauthorized,
+			jwtTokenStr: &jwtTokenStr,
+		}, {
+			name:       "duplicate username",
+			args:       &UserRegisterRequest{Username: argsDup.Username, Password: argsDup.Password},
+			wantStatus: http.StatusConflict,
+		}, {
+			name:       "bad request",
+			args:       nil,
+			wantStatus: http.StatusBadRequest,
+		}, {
+			name: "empty username",
+			args: &UserRegisterRequest{
+				Username: argsIncorrectUsername.Username,
+				Password: argsIncorrectUsername.Password,
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		}, {
+			name: "empty password",
+			args: &UserRegisterRequest{
+				Username: argsIncorrectPassword.Username,
+				Password: argsIncorrectPassword.Password,
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		}, {
+			name: "password too long in bytes",
+			args: &UserRegisterRequest{
+				Username: argsTooLongPassword.Username,
+				Password: argsTooLongPassword.Password,
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, t := range cases {
+		s.Run(t.name, func() {
+			var payload []byte
+			if t.args != nil {
+				payload, _ = json.Marshal(t.args)
+			}
+
+			args := testutils.RequestArgs{
+				Router: s.router,
+				Method: http.MethodPost,
+				URL:    RouteGroup + RegisterRoute,
+				Body:   bytes.NewReader(payload),
+			}
+
+			var reqOpts []func(*testutils.RequestOptions)
+			if t.jwtTokenStr != nil {
+				v := fmt.Sprintf("Bearer %s", *t.jwtTokenStr)
+				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", v))
+			}
+
+			res, err := testutils.MakeRequest(args, reqOpts...)
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
+
+			s.Require().NoError(err)
+			s.Equal(t.wantStatus, res.StatusCode)
+		})
+	}
+}
+
+func (s *AuthHandlerTestSuite) TestLogin() {
+	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(jwtErr)
+
+	argsOk := service.LoginUserArgs{Username: "test", Password: "password"}
+	argsWrongUsername := service.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
+	argsWrongPass := service.LoginUserArgs{Username: "test", Password: "<wrong>"}
+
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsOk).
+		Return(&domain.User{}, "token", nil).Times(1)
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsWrongUsername).
+		Return(nil, "", domain.ErrRecordNotFound)
+	s.mockUserService.EXPECT().
+		Login(gomock.Any(), argsWrongPass).
+		Return(nil, "", domain.ErrPasswordMissMatch)
+
+	cases := []struct {
+		name        string
+		args        *UserLoginParams
+		jwtTokenStr *string
+		wantStatus  int
+	}{
+		{
+			name:       "ok",
+			args:       &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus: http.StatusOK,
+		}, {
+			name:        "already logged in",
+			args:        &UserLoginParams{Username: argsOk.Username, Password: argsOk.Password},
+			wantStatus:  http.StatusUnauthorized,
+			jwtTokenStr: &jwtTokenStr,
+		}, {
+			name:       "bad request",
+			args:       nil,
+			wantStatus: http.StatusBadRequest,
+		}, {
+			name:       "wrong username",
+			args:       &UserLoginParams{Username: argsWrongUsername.Username, Password: argsWrongUsername.Password},
+			wantStatus: http.StatusUnauthorized,
+		}, {
+			name:       "wrong password",
+			args:       &UserLoginParams{Username: argsWrongPass.Username, Password: argsWrongPass.Password},
+			wantStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, t := range cases {
+		s.Run(t.name, func() {
+			var payload []byte
+			if t.args != nil {
+				payload, _ = json.Marshal(t.args)
+			}
+
+			args := testutils.RequestArgs{
+				Router: s.router,
+				Method: http.MethodPost,
+				URL:    RouteGroup + LoginRoute,
+				Body:   bytes.NewReader(payload),
+			}
+
+			var reqOpts []func(*testutils.RequestOptions)
+			if t.jwtTokenStr != nil {
+				v := fmt.Sprintf("Bearer %s", *t.jwtTokenStr)
+				reqOpts = append(reqOpts, testutils.WithHeader("Authorization", v))
+			}
+
+			res, err := testutils.MakeRequest(args, reqOpts...)
+			defer func() {
+				closeErr := res.Body.Close()
+				s.Require().NoError(closeErr)
+			}()
+
+			s.Require().NoError(err)
+			s.Equal(t.wantStatus, res.StatusCode)
+		})
+	}
+}
