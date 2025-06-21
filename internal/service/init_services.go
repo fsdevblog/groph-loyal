@@ -12,7 +12,13 @@ type AppServices struct {
 	BlService    *BalanceTransactionService
 }
 
-func Factory(unitOfWork uow.UOW, jwtSecret []byte) (*AppServices, error) {
+// NewAppServices инициализирует и возвращает структуру AppServices, содержащую все сервисы приложения.
+// Метод создает экземпляры UserService, OrderService и BalanceTransactionService, используя предоставленный unitOfWork
+// и секретный ключ для JWT.
+//
+// Если при создании какого-либо из сервисов возникает ошибка, метод немедленно прерывает выполнение
+// и возвращает эту ошибку.
+func NewAppServices(unitOfWork uow.UOW, jwtSecret []byte) (*AppServices, error) {
 	userService, userServiceErr := NewUserService(unitOfWork, jwtSecret)
 
 	if userServiceErr != nil {

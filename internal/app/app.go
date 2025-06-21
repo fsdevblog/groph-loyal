@@ -54,7 +54,7 @@ func (a *App) Run() error {
 		return fmt.Errorf("app run: %s", uowErr.Error())
 	}
 
-	services, sErr := service.Factory(unitOfWork, []byte(a.Config.JWTUserSecret))
+	services, sErr := service.NewAppServices(unitOfWork, []byte(a.Config.JWTUserSecret))
 
 	if sErr != nil {
 		return fmt.Errorf("app run: %s", sErr.Error())
