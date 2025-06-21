@@ -21,8 +21,8 @@ func LoadConfig() (*Config, error) {
 
 	loadFlags(&conf)
 
-	if envParseErr := env.Parse(&conf); envParseErr != nil {
-		return nil, fmt.Errorf("parse env config: %s", envParseErr.Error())
+	if errEnvParse := env.Parse(&conf); errEnvParse != nil {
+		return nil, fmt.Errorf("parse env config: %s", errEnvParse.Error())
 	}
 
 	if conf.DatabaseDSN == "" {

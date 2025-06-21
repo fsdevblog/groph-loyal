@@ -60,11 +60,11 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 	var currentUserID int64 = 1
 	var anotherUserID int64 = 2
 
-	currentUserJWTToken, cJWTTokenErr := tokens.GenerateUserJWT(currentUserID, time.Hour, s.jwtSecret)
-	s.Require().NoError(cJWTTokenErr)
+	currentUserJWTToken, errJWTCurrentUser := tokens.GenerateUserJWT(currentUserID, time.Hour, s.jwtSecret)
+	s.Require().NoError(errJWTCurrentUser)
 
-	anotherUserJWTToken, aJWTTokenErr := tokens.GenerateUserJWT(anotherUserID, time.Hour, s.jwtSecret)
-	s.Require().NoError(aJWTTokenErr)
+	anotherUserJWTToken, errJWTAnotherUser := tokens.GenerateUserJWT(anotherUserID, time.Hour, s.jwtSecret)
+	s.Require().NoError(errJWTAnotherUser)
 
 	validPayload := []byte("12345678903")
 	existingPayload := []byte("79927398713")
@@ -149,8 +149,8 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 			res, err := testutils.MakeRequest(args, reqOpts...)
 
 			defer func() {
-				closeErr := res.Body.Close()
-				s.Require().NoError(closeErr)
+				errClose := res.Body.Close()
+				s.Require().NoError(errClose)
 			}()
 
 			s.Require().NoError(err)
@@ -163,10 +163,10 @@ func (s *OrderHandlerTestSuite) TestIndex() {
 	var userID int64 = 1
 	var noOrdersUserID int64 = 2
 
-	userJWTToken, uJWTErr := tokens.GenerateUserJWT(userID, time.Hour, s.jwtSecret)
-	s.Require().NoError(uJWTErr)
-	userNoOrdersJWTToken, uNoOrdersJWTErr := tokens.GenerateUserJWT(noOrdersUserID, time.Hour, s.jwtSecret)
-	s.Require().NoError(uNoOrdersJWTErr)
+	userJWTToken, errUserJWT := tokens.GenerateUserJWT(userID, time.Hour, s.jwtSecret)
+	s.Require().NoError(errUserJWT)
+	userNoOrdersJWTToken, errUserNoOrdersJWT := tokens.GenerateUserJWT(noOrdersUserID, time.Hour, s.jwtSecret)
+	s.Require().NoError(errUserNoOrdersJWT)
 
 	orders := []domain.Order{
 		{

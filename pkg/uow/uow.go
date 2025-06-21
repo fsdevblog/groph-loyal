@@ -108,21 +108,21 @@ func (u *UnitOfWork) Do(
 		}
 	}
 
-	tx, txErr := u.conn.BeginTx(ctx, pgx.TxOptions{
+	tx, errTx := u.conn.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: convertIsolationLevelType(options.IsolationLevel),
 	})
-	if txErr != nil {
-		return txErr //nolint:wrapcheck
+	if errTx != nil {
+		return errTx //nolint:wrapcheck
 	}
 	defer func() {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			err = errors.Join(err, rollbackErr)
+		if errRollback := tx.Rollback(ctx); errRollback != nil && !errors.Is(errRollback, pgx.ErrTxClosed) {
+			err = errors.Join(err, errRollback)
 		}
 	}()
 
-	transErr := fn(ctx, NewTransaction(tx, u.repositories))
-	if transErr != nil {
-		return transErr
+	errTrans := fn(ctx, NewTransaction(tx, u.repositories))
+	if errTrans != nil {
+		return errTrans
 	}
 	err = tx.Commit(ctx)
 	return err //nolint:wrapcheck

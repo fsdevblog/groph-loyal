@@ -54,8 +54,8 @@ func (b *BalanceHandler) Withdraw(c *gin.Context) {
 	currentUserID := getUserIDFromContext(c)
 
 	var params WithdrawParams
-	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, bindErr).SetType(gin.ErrorTypeBind)
+	if errBind := c.ShouldBindJSON(&params); errBind != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, errBind).SetType(gin.ErrorTypeBind)
 		return
 	}
 
@@ -67,13 +67,13 @@ func (b *BalanceHandler) Withdraw(c *gin.Context) {
 	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	_, err := b.svs.Withdraw(reqCtx, currentUserID, params.OrderCode, params.Amount)
-	if err != nil {
+	_, errWithdraw := b.svs.Withdraw(reqCtx, currentUserID, params.OrderCode, params.Amount)
+	if errWithdraw != nil {
 		switch {
-		case errors.Is(err, domain.ErrNotEnoughBalance):
+		case errors.Is(errWithdraw, domain.ErrNotEnoughBalance):
 			c.AbortWithStatus(http.StatusPaymentRequired)
 		default:
-			_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+			_ = c.AbortWithError(http.StatusInternalServerError, errWithdraw).SetType(gin.ErrorTypePrivate)
 		}
 		return
 	}

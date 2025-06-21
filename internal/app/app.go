@@ -43,24 +43,24 @@ func (a *App) Run() error {
 	defer stop()
 
 	a.Logger.Infof("Starting app with config: %+v", a.Config)
-	conn, connErr := pgrepo.Connect(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
-	if connErr != nil {
-		return fmt.Errorf("app run: %s", connErr.Error())
+	conn, errConn := pgrepo.Connect(notifyCtx, a.Config.MigrationsDir, a.Config.DatabaseDSN, a.Logger)
+	if errConn != nil {
+		return fmt.Errorf("app run: %s", errConn.Error())
 	}
 	defer conn.Close()
 
-	unitOfWork, uowErr := initUOW(conn)
-	if uowErr != nil {
-		return fmt.Errorf("app run: %s", uowErr.Error())
+	unitOfWork, errUOW := initUOW(conn)
+	if errUOW != nil {
+		return fmt.Errorf("app run: %s", errUOW.Error())
 	}
 
-	services, sErr := service.NewAppServices(unitOfWork, []byte(a.Config.JWTUserSecret))
+	services, errServices := service.NewAppServices(unitOfWork, []byte(a.Config.JWTUserSecret))
 
-	if sErr != nil {
-		return fmt.Errorf("app run: %s", sErr.Error())
+	if errServices != nil {
+		return fmt.Errorf("app run: %s", errServices.Error())
 	}
 
-	router, routerErr := api.New(api.RouterArgs{
+	router, errRouter := api.New(api.RouterArgs{
 		Logger:       a.Logger,
 		UserService:  services.UserService,
 		OrderService: services.OrderService,
@@ -68,8 +68,8 @@ func (a *App) Run() error {
 		JWTSecretKey: []byte(a.Config.JWTUserSecret),
 	})
 
-	if routerErr != nil {
-		return fmt.Errorf("app run: %s", routerErr.Error())
+	if errRouter != nil {
+		return fmt.Errorf("app run: %s", errRouter.Error())
 	}
 
 	errChan := make(chan error, 1)

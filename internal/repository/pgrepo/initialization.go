@@ -34,16 +34,16 @@ func Connect(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (
 				connChan <- connResult{err: ctx.Err()}
 				return
 			default:
-				conn, connErr := newPostgresConnection(ctx, dsn)
-				if connErr != nil {
+				conn, errConn := newPostgresConnection(ctx, dsn)
+				if errConn != nil {
 					attempts++
 					if attempts > maxAttempts {
 						connChan <- connResult{
-							err: fmt.Errorf("init postgres connection after %d attempts: %w", maxAttempts, connErr),
+							err: fmt.Errorf("init postgres connection after %d attempts: %w", maxAttempts, errConn),
 						}
 						return
 					}
-					l.WithError(connErr).
+					l.WithError(errConn).
 						WithField("CurrentAttempt", fmt.Sprintf("#%d / %d", attempts, maxAttempts)).
 						Warnf("init postgres connection error, retrying in %.f seconds", retryInterval.Seconds())
 					time.Sleep(retryInterval)
@@ -70,27 +70,27 @@ func Connect(ctx context.Context, migrationsDir, dsn string, l *logrus.Logger) (
 }
 
 func newPostgresConnection(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	poolConfig, confErr := pgxpool.ParseConfig(dsn)
-	if confErr != nil {
-		return nil, fmt.Errorf("parse postgres config: %s", confErr.Error())
+	poolConfig, errConf := pgxpool.ParseConfig(dsn)
+	if errConf != nil {
+		return nil, fmt.Errorf("parse postgres config: %s", errConf.Error())
 	}
-	pool, poolErr := pgxpool.NewWithConfig(ctx, poolConfig)
-	if poolErr != nil {
-		return nil, fmt.Errorf("failed to create pool: %s", poolErr.Error())
+	pool, errPool := pgxpool.NewWithConfig(ctx, poolConfig)
+	if errPool != nil {
+		return nil, fmt.Errorf("failed to create pool: %s", errPool.Error())
 	}
 
 	// Проверяем, что соединение работает (Ping)
-	if pingErr := pool.Ping(ctx); pingErr != nil {
-		return nil, fmt.Errorf("failed to connect to postgres: %s", pingErr.Error())
+	if errPing := pool.Ping(ctx); errPing != nil {
+		return nil, fmt.Errorf("failed to connect to postgres: %s", errPing.Error())
 	}
 
 	return pool, nil
 }
 
 func postgresMigrate(dir string, dsn string) error {
-	m, mErr := migrate.New("file://"+dir, dsn)
-	if mErr != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", mErr)
+	m, errM := migrate.New("file://"+dir, dsn)
+	if errM != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", errM)
 	}
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to migrate schema: %w", err)

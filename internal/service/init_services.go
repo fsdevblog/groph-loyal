@@ -19,20 +19,20 @@ type AppServices struct {
 // Если при создании какого-либо из сервисов возникает ошибка, метод немедленно прерывает выполнение
 // и возвращает эту ошибку.
 func NewAppServices(unitOfWork uow.UOW, jwtSecret []byte) (*AppServices, error) {
-	userService, userServiceErr := NewUserService(unitOfWork, jwtSecret)
+	userService, errUserService := NewUserService(unitOfWork, jwtSecret)
 
-	if userServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", userServiceErr.Error())
+	if errUserService != nil {
+		return nil, fmt.Errorf("service factory: %s", errUserService.Error())
 	}
 
-	orderService, orderServiceErr := NewOrderService(unitOfWork)
-	if orderServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", orderServiceErr.Error())
+	orderService, errOrderService := NewOrderService(unitOfWork)
+	if errOrderService != nil {
+		return nil, fmt.Errorf("service factory: %s", errOrderService.Error())
 	}
 
-	blService, blServiceErr := NewBalanceTransactionService(unitOfWork)
-	if blServiceErr != nil {
-		return nil, fmt.Errorf("service factory: %s", blServiceErr.Error())
+	blService, errBlService := NewBalanceTransactionService(unitOfWork)
+	if errBlService != nil {
+		return nil, fmt.Errorf("service factory: %s", errBlService.Error())
 	}
 
 	return &AppServices{

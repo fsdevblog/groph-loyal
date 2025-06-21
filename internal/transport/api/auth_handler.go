@@ -31,10 +31,10 @@ type UserRegisterRequest struct {
 // Register POST RouteGroup + RegisterRoute. Регистрирует пользователя и аутентифицирует его.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var params UserRegisterRequest
-	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
-		var valErrs validator.ValidationErrors
-		if errors.As(bindErr, &valErrs) {
-			_ = c.AbortWithError(http.StatusUnprocessableEntity, bindErr).
+	if errBind := c.ShouldBindJSON(&params); errBind != nil {
+		var errValidator validator.ValidationErrors
+		if errors.As(errBind, &errValidator) {
+			_ = c.AbortWithError(http.StatusUnprocessableEntity, errBind).
 				SetType(gin.ErrorTypeBind)
 			return
 		}
@@ -46,17 +46,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	_, jwtToken, createErr := h.userService.Register(ctx, service.RegisterUserArgs{
+	_, jwtToken, errCreate := h.userService.Register(ctx, service.RegisterUserArgs{
 		Username: params.Username,
 		Password: params.Password,
 	})
-	if createErr != nil {
-		if errors.Is(createErr, domain.ErrDuplicateKey) {
+	if errCreate != nil {
+		if errors.Is(errCreate, domain.ErrDuplicateKey) {
 			_ = c.AbortWithError(http.StatusConflict, errors.New("user with this login already exists")).
 				SetType(gin.ErrorTypePublic)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, createErr).
+		_ = c.AbortWithError(http.StatusInternalServerError, errCreate).
 			SetType(gin.ErrorTypePrivate)
 		return
 	}
@@ -82,8 +82,8 @@ type UserResponse struct {
 // Login POST RouteGroup + LoginRoute. Аутентификация по паре логин/пароль.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var params UserLoginParams
-	if bindErr := c.ShouldBindJSON(&params); bindErr != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, bindErr).
+	if errBind := c.ShouldBindJSON(&params); errBind != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, errBind).
 			SetType(gin.ErrorTypeBind)
 		return
 	}
@@ -91,18 +91,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	user, token, err := h.userService.Login(ctx, service.LoginUserArgs{
+	user, token, errLogin := h.userService.Login(ctx, service.LoginUserArgs{
 		Username: params.Username,
 		Password: params.Password,
 	})
 
-	if err != nil {
-		if errors.Is(err, domain.ErrRecordNotFound) || errors.Is(err, domain.ErrPasswordMissMatch) {
+	if errLogin != nil {
+		if errors.Is(errLogin, domain.ErrRecordNotFound) || errors.Is(errLogin, domain.ErrPasswordMissMatch) {
 			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("invalid credentials")).
 				SetType(gin.ErrorTypePublic)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+		_ = c.AbortWithError(http.StatusInternalServerError, errLogin).SetType(gin.ErrorTypePrivate)
 		return
 	}
 	c.Header("Authorization", "Bearer "+token)

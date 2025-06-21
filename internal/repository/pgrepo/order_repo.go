@@ -44,9 +44,9 @@ func (o *OrderRepository) GetForMonitoring(
 	ctx context.Context,
 	limit uint,
 ) ([]domain.Order, error) {
-	safeLimit, safeLimitErr := safeConvertUintToInt32(limit)
-	if safeLimitErr != nil {
-		return nil, convertErr(safeLimitErr, "converting limit to int32")
+	safeLimit, errSafeLimit := safeConvertUintToInt32(limit)
+	if errSafeLimit != nil {
+		return nil, convertErr(errSafeLimit, "converting limit to int32")
 	}
 
 	dbOrders, err := o.q.Orders_GetForMonitoring(ctx, safeLimit)

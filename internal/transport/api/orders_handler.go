@@ -43,9 +43,9 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 		return
 	}
 
-	body, err := c.GetRawData()
-	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+	body, errBody := c.GetRawData()
+	if errBody != nil {
+		_ = c.AbortWithError(http.StatusInternalServerError, errBody).SetType(gin.ErrorTypePrivate)
 		return
 	}
 	orderCode := string(body)
@@ -58,11 +58,11 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 	reqCtx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	_, createErr := o.orderSvs.Create(reqCtx, currentUserID, orderCode)
-	if createErr != nil {
+	_, errCreate := o.orderSvs.Create(reqCtx, currentUserID, orderCode)
+	if errCreate != nil {
 		var duplicateErr *domain.DuplicateOrderError
 
-		if errors.As(createErr, &duplicateErr) {
+		if errors.As(errCreate, &duplicateErr) {
 			// В зависимости от принадлежности Order'а текущему юзеру, возвращаем тот или иной http статус.
 			var statusCode = http.StatusConflict
 			if duplicateErr.Order.UserID == currentUserID {
@@ -71,7 +71,7 @@ func (o *OrdersHandler) Create(c *gin.Context) {
 			c.AbortWithStatus(statusCode)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, createErr).
+		_ = c.AbortWithError(http.StatusInternalServerError, errCreate).
 			SetType(gin.ErrorTypePrivate)
 		return
 	}

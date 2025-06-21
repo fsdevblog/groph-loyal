@@ -95,10 +95,10 @@ func (p *Processor) Run(ctx context.Context) {
 // process выполняет цикл обработки заказов: получение списка, запрос данных через API и обновление информации.
 // Возвращает ошибку в случае проблем или ErrNoOrders если нет заказов для обработки.
 func (p *Processor) process(ctx context.Context) error {
-	orders, ordersErr := p.produce(ctx)
+	orders, errProduceOrders := p.produce(ctx)
 
-	if ordersErr != nil {
-		return fmt.Errorf("process: %w", ordersErr)
+	if errProduceOrders != nil {
+		return fmt.Errorf("process: %w", errProduceOrders)
 	}
 
 	results := p.runWorkers(ctx, orders)
@@ -125,8 +125,8 @@ func (p *Processor) process(ctx context.Context) error {
 	reqCtx, cancel := context.WithTimeout(ctx, defaultServiceTimeout)
 	defer cancel()
 
-	if updErr := p.svs.UpdateAccrual(reqCtx, updateArgs); updErr != nil {
-		return fmt.Errorf("process: %s", updErr.Error())
+	if errUpd := p.svs.UpdateAccrual(reqCtx, updateArgs); errUpd != nil {
+		return fmt.Errorf("process: %s", errUpd.Error())
 	}
 
 	return nil
@@ -232,7 +232,6 @@ func (p *Processor) processWorkerTask(ctx context.Context, workerID uint, task *
 			}
 			var tooManyReq *client.TooManyRequestError
 			if errors.As(err, &tooManyReq) {
-				// Проверяем отмену контекста перед спячкой
 				select {
 				case <-ctx.Done():
 					result.Error = ctx.Err()
@@ -263,9 +262,9 @@ func (p *Processor) produce(ctx context.Context) ([]domain.Order, error) {
 	produceCtx, cancel := context.WithTimeout(ctx, defaultServiceTimeout)
 	defer cancel()
 
-	orders, ordersErr := p.svs.OrdersForAccrualMonitoring(produceCtx, p.limitPerIteration)
-	if ordersErr != nil {
-		return nil, fmt.Errorf("produce: %w", ordersErr)
+	orders, errOrders := p.svs.OrdersForAccrualMonitoring(produceCtx, p.limitPerIteration)
+	if errOrders != nil {
+		return nil, fmt.Errorf("produce: %w", errOrders)
 	}
 
 	if len(orders) == 0 {

@@ -26,9 +26,9 @@ type UserService struct {
 }
 
 func NewUserService(u uow.UOW, jwtTokenSecret []byte) (*UserService, error) {
-	userRepo, userRepoErr := uow.GetRepositoryAs[UserRepository](u, uow.RepositoryName(repoargs.UserRepoName))
-	if userRepoErr != nil {
-		return nil, userRepoErr
+	userRepo, err := uow.GetRepositoryAs[UserRepository](u, uow.RepositoryName(repoargs.UserRepoName))
+	if err != nil {
+		return nil, err
 	}
 	return &UserService{
 		uow:            u,
@@ -47,35 +47,35 @@ type RegisterUserArgs struct {
 // созданный юзер, токен и ошибку. В случае если username занят, возвращается ошибка domain.ErrDuplicateKey, во
 // всех других кейсах - domain.ErrUnknown.
 func (s *UserService) Register(ctx context.Context, args RegisterUserArgs) (*domain.User, string, error) {
-	password, hashErr := s.psswdHasher.HashPassword(args.Password)
-	if hashErr != nil {
-		return nil, "", fmt.Errorf("registering user: %s", hashErr.Error())
+	password, errPsswdHash := s.psswdHasher.HashPassword(args.Password)
+	if errPsswdHash != nil {
+		return nil, "", fmt.Errorf("registering user: %s", errPsswdHash.Error())
 	}
 	var user *domain.User
 	var token string
-	txErr := s.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		var userErr, tokenErr error
-		userRepo, userRepoErr := uow.GetAs[UserRepository](tx, uow.RepositoryName(repoargs.UserRepoName))
-		if userRepoErr != nil {
-			return userRepoErr //nolint:wrapcheck
+	errTx := s.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
+		var errUser, errToken error
+		userRepo, errUserRepo := uow.GetAs[UserRepository](tx, uow.RepositoryName(repoargs.UserRepoName))
+		if errUserRepo != nil {
+			return errUserRepo //nolint:wrapcheck
 		}
-		user, userErr = userRepo.CreateUser(c, repoargs.CreateUser{
+		user, errUser = userRepo.CreateUser(c, repoargs.CreateUser{
 			Username: args.Username,
 			Password: password,
 		})
-		if userErr != nil {
-			return userErr //nolint:wrapcheck
+		if errUser != nil {
+			return errUser //nolint:wrapcheck
 		}
 
-		token, tokenErr = tokens.GenerateUserJWT(user.ID, JWTTokenExpire, s.jwtTokenSecret)
-		if tokenErr != nil {
-			return tokenErr //nolint:wrapcheck
+		token, errToken = tokens.GenerateUserJWT(user.ID, JWTTokenExpire, s.jwtTokenSecret)
+		if errToken != nil {
+			return errToken //nolint:wrapcheck
 		}
 		return nil
 	})
 
-	if txErr != nil {
-		return nil, "", fmt.Errorf("registering user: %w", txErr)
+	if errTx != nil {
+		return nil, "", fmt.Errorf("registering user: %w", errTx)
 	}
 	return user, token, nil
 }
@@ -90,17 +90,17 @@ type LoginUserArgs struct {
 // domain.RecordNotFound, если пароль неверный - domain.ErrPasswordMissMatch, во всех других случаях -
 // domain.ErrUnknown или не типизированная ошибка.
 func (s *UserService) Login(ctx context.Context, args LoginUserArgs) (*domain.User, string, error) {
-	user, userErr := s.userRepo.FindUserByUsername(ctx, args.Username)
-	if userErr != nil {
-		return nil, "", fmt.Errorf("logging in user: %w", userErr)
+	user, errUser := s.userRepo.FindUserByUsername(ctx, args.Username)
+	if errUser != nil {
+		return nil, "", fmt.Errorf("logging in user: %w", errUser)
 	}
 
 	if !s.psswdHasher.ComparePassword(args.Password, user.EncryptedPassword) {
 		return nil, "", domain.ErrPasswordMissMatch
 	}
-	token, tokenErr := tokens.GenerateUserJWT(user.ID, JWTTokenExpire, s.jwtTokenSecret)
-	if tokenErr != nil {
-		return nil, "", fmt.Errorf("logging in user: %s", tokenErr.Error())
+	token, errToken := tokens.GenerateUserJWT(user.ID, JWTTokenExpire, s.jwtTokenSecret)
+	if errToken != nil {
+		return nil, "", fmt.Errorf("logging in user: %s", errToken.Error())
 	}
 
 	return user, token, nil

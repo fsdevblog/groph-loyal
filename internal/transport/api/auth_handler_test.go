@@ -57,8 +57,8 @@ func TestAuthHandlerSuite(t *testing.T) {
 
 func (s *AuthHandlerTestSuite) TestRegister() {
 	maxPasswordLength := 72
-	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
-	s.Require().NoError(jwtErr)
+	jwtTokenStr, errJWT := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(errJWT)
 
 	argsOk := service.RegisterUserArgs{Username: "test", Password: "password"}
 	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
@@ -152,8 +152,8 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 }
 
 func (s *AuthHandlerTestSuite) TestLogin() {
-	jwtTokenStr, jwtErr := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
-	s.Require().NoError(jwtErr)
+	jwtTokenStr, errJWT := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
+	s.Require().NoError(errJWT)
 
 	argsOk := service.LoginUserArgs{Username: "test", Password: "password"}
 	argsWrongUsername := service.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
@@ -221,8 +221,8 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 
 			res, err := testutils.MakeRequest(args, reqOpts...)
 			defer func() {
-				closeErr := res.Body.Close()
-				s.Require().NoError(closeErr)
+				errClose := res.Body.Close()
+				s.Require().NoError(errClose)
 			}()
 
 			s.Require().NoError(err)

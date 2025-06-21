@@ -117,14 +117,14 @@ func (o *OrderService) incrementErrAttempts(ctx context.Context, tx uow.TX, fail
 			NextAttemptAt: nextAttempt,
 		}
 	}
-	var incrementErr error
+	var errIncrement error
 	repo.IncrementErrAttempts(ctx, args, func(_ int, err error) {
 		if err != nil {
-			incrementErr = err
+			errIncrement = err
 		}
 	})
 
-	return incrementErr
+	return errIncrement
 }
 
 // updateSuccessOrdersWithAccrual обновляет статусы заказов с успешным начислением
@@ -137,13 +137,13 @@ func (o *OrderService) updateSuccessOrdersWithAccrual(
 	if len(data) == 0 {
 		return nil
 	}
-	orders, updOrdersErr := o.updateOrdersWithAccrual(ctx, tx, data)
-	if updOrdersErr != nil {
-		return updOrdersErr
+	orders, errUpdOrders := o.updateOrdersWithAccrual(ctx, tx, data)
+	if errUpdOrders != nil {
+		return errUpdOrders
 	}
 
-	if bTransErr := o.createBalanceTransactionsForOrders(ctx, tx, orders); bTransErr != nil {
-		return bTransErr
+	if errCreateBT := o.createBalanceTransactionsForOrders(ctx, tx, orders); errCreateBT != nil {
+		return errCreateBT
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) (
 	[]failureUpdatesAccrual,
 ) {
 	var successData = make([]successUpdatesAccrual, 0, len(updates))
-	var failureIDs = make([]failureUpdatesAccrual, 0, len(updates))
+	var failData = make([]failureUpdatesAccrual, 0, len(updates))
 	for _, update := range updates {
 		if update.Error == nil {
 			successData = append(successData, successUpdatesAccrual{
@@ -165,13 +165,13 @@ func (o *OrderService) splitSuccessFailureUpdates(updates []UpdateAccrualArgs) (
 				Accrual: update.Accrual,
 			})
 		} else {
-			failureIDs = append(failureIDs, failureUpdatesAccrual{
+			failData = append(failData, failureUpdatesAccrual{
 				OrderID:        update.OrderID,
 				CurrentAttempt: update.Attempt,
 			})
 		}
 	}
-	return successData, failureIDs
+	return successData, failData
 }
 
 // createBalanceTransactionsForOrders создает записи в таблице транзакций баланса для заказов со статусом PROCESSED.
@@ -197,24 +197,24 @@ func (o *OrderService) createBalanceTransactionsForOrders(ctx context.Context, t
 		return nil
 	}
 
-	balanceRepo, balanceRepoErr :=
+	balanceRepo, errBalanceRepo :=
 		uow.GetAs[BalanceTransactionRepository](tx, uow.RepositoryName(repoargs.BalanceTransactionRepoName))
 
-	if balanceRepoErr != nil {
-		return balanceRepoErr //nolint:wrapcheck
+	if errBalanceRepo != nil {
+		return errBalanceRepo //nolint:wrapcheck
 	}
 
-	var balanceTransactionErr error
+	var errBalanceTransaction error
 
 	balanceRepo.BatchCreate(ctx, transDTO, func(_ int, err error) {
 		if err != nil {
 			if errors.Is(err, domain.ErrDuplicateKey) {
 				return
 			}
-			balanceTransactionErr = err
+			errBalanceTransaction = err
 		}
 	})
-	return balanceTransactionErr
+	return errBalanceTransaction
 }
 
 // updateOrdersWithAccrual вспомогательный метод, выполняющий батч запрос на обновление заказов с данными начисления
@@ -224,9 +224,9 @@ func (o *OrderService) updateOrdersWithAccrual(
 	tx uow.TX,
 	updates []successUpdatesAccrual,
 ) ([]domain.Order, error) {
-	repo, repoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
-	if repoErr != nil {
-		return nil, repoErr //nolint:wrapcheck
+	repo, errRepo := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
+	if errRepo != nil {
+		return nil, errRepo //nolint:wrapcheck
 	}
 
 	var orders = make([]domain.Order, len(updates))
@@ -239,16 +239,16 @@ func (o *OrderService) updateOrdersWithAccrual(
 			Accrual: update.Accrual,
 		}
 	}
-	// updOrderErr будет хранить последнюю ошибку результата батч вставки. Мне кажется нет смысла ошибки объединять.
-	var updOrderErr error
+	// errUpdOrder будет хранить последнюю ошибку результата батч вставки. Мне кажется нет смысла ошибки объединять.
+	var errUpdOrder error
 	repo.BatchUpdateWithAccrualData(ctx, repoArgs, func(i int, dbOrder *domain.Order, err error) {
 		if err != nil {
-			updOrderErr = err
+			errUpdOrder = err
 			return
 		}
 		orders[i] = *dbOrder
 	})
-	return orders, updOrderErr
+	return orders, errUpdOrder
 }
 
 // Create создает новый заказ в БД. Возвращает 2 значения, созданный заказ и ошибку. Если заказ уже присутствует
@@ -256,18 +256,18 @@ func (o *OrderService) updateOrdersWithAccrual(
 func (o *OrderService) Create(ctx context.Context, userID int64, orderCode string) (*domain.Order, error) {
 	var order *domain.Order
 
-	order, createErr := o.orderRepo.CreateOrder(ctx, userID, orderCode)
-	if createErr != nil {
+	order, errCreate := o.orderRepo.CreateOrder(ctx, userID, orderCode)
+	if errCreate != nil {
 		// Если запись присутствует в БД. Получаем её и передаем в domain.DuplicateOrderError.
-		if errors.Is(createErr, domain.ErrDuplicateKey) {
-			existingOrder, existingOrderErr := o.orderRepo.FindByOrderCode(ctx, orderCode)
-			if existingOrderErr != nil {
-				return nil, fmt.Errorf("creating order: %w", existingOrderErr)
+		if errors.Is(errCreate, domain.ErrDuplicateKey) {
+			existingOrder, errExistingOrder := o.orderRepo.FindByOrderCode(ctx, orderCode)
+			if errExistingOrder != nil {
+				return nil, fmt.Errorf("creating order: %w", errExistingOrder)
 			}
 			return nil, &domain.DuplicateOrderError{Order: existingOrder}
 		}
 
-		return nil, fmt.Errorf("creating order: %w", createErr)
+		return nil, fmt.Errorf("creating order: %w", errCreate)
 	}
 
 	return order, nil

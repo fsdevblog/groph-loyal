@@ -40,19 +40,19 @@ func MakeRequest(args RequestArgs, opts ...func(*RequestOptions)) (*http.Respons
 	// Добавляем gzip сжатие тела запроса, если надо.
 	if options.gziped && args.Body != nil {
 		var gzipBuffer bytes.Buffer
-		gzipW, gzErr := gzip.NewWriterLevel(&gzipBuffer, gzip.BestSpeed)
-		if gzErr != nil {
-			return nil, fmt.Errorf("failed to create gzip writer: %s", gzErr.Error())
+		gzipW, errGzip := gzip.NewWriterLevel(&gzipBuffer, gzip.BestSpeed)
+		if errGzip != nil {
+			return nil, fmt.Errorf("failed to create gzip writer: %s", errGzip.Error())
 		}
 
 		// копируем тело в gzip.Writer.
-		_, copyErr := io.Copy(gzipW, args.Body)
-		if copyErr != nil {
-			return nil, fmt.Errorf("failed to copy request body to gzip writer: %s", copyErr.Error())
+		_, errCopy := io.Copy(gzipW, args.Body)
+		if errCopy != nil {
+			return nil, fmt.Errorf("failed to copy request body to gzip writer: %s", errCopy.Error())
 		}
 
-		if err := gzipW.Close(); err != nil {
-			return nil, fmt.Errorf("failed to close gzip writer: %s", err.Error())
+		if errClose := gzipW.Close(); errClose != nil {
+			return nil, fmt.Errorf("failed to close gzip writer: %s", errClose.Error())
 		}
 		body = &gzipBuffer
 	}

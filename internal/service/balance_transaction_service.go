@@ -21,9 +21,9 @@ type BalanceTransactionService struct {
 // NewBalanceTransactionService создает новый сервис для транзакций баланса.
 func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error) {
 	rName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
-	blRepo, blRepoErr := uow.GetRepositoryAs[BalanceTransactionRepository](u, rName)
-	if blRepoErr != nil {
-		return nil, blRepoErr
+	blRepo, errBlRepo := uow.GetRepositoryAs[BalanceTransactionRepository](u, rName)
+	if errBlRepo != nil {
+		return nil, errBlRepo
 	}
 	return &BalanceTransactionService{
 		uow:    u,
@@ -76,27 +76,27 @@ func (b *BalanceTransactionService) Withdraw(
 ) (*domain.BalanceTransaction, error) {
 	var bl *domain.BalanceTransaction
 	transFn := func(c context.Context, tx uow.TX) error {
-		orderRepo, orderRepoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
-		if orderRepoErr != nil {
-			return orderRepoErr //nolint:wrapcheck
+		orderRepo, errOrderRepo := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
+		if errOrderRepo != nil {
+			return errOrderRepo //nolint:wrapcheck
 		}
 
 		// Создаем заказ, в счет которого будут списываться баллы.
-		order, orderErr := orderRepo.CreateOrder(c, userID, orderCode)
-		if orderErr != nil {
-			return orderErr //nolint:wrapcheck
+		order, errOrder := orderRepo.CreateOrder(c, userID, orderCode)
+		if errOrder != nil {
+			return errOrder //nolint:wrapcheck
 		}
 
 		blRName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
-		blRepo, blRepoErr := uow.GetAs[BalanceTransactionRepository](tx, blRName)
-		if blRepoErr != nil {
-			return blRepoErr //nolint:wrapcheck
+		blRepo, errBlRepo := uow.GetAs[BalanceTransactionRepository](tx, blRName)
+		if errBlRepo != nil {
+			return errBlRepo //nolint:wrapcheck
 		}
 
 		// проверяем баланс юзера
-		balance, balanceErr := blRepo.GetUserBalance(ctx, userID)
-		if balanceErr != nil {
-			return balanceErr //nolint:wrapcheck
+		balance, errBalance := blRepo.GetUserBalance(ctx, userID)
+		if errBalance != nil {
+			return errBalance //nolint:wrapcheck
 		}
 		balanceSum := balance.DebitAmount.Sub(balance.CreditAmount)
 		if balanceSum.LessThan(amount) {
@@ -104,24 +104,24 @@ func (b *BalanceTransactionService) Withdraw(
 		}
 
 		// создаем транзакцию credit.
-		var createErr error
-		bl, createErr = blRepo.Create(c, repoargs.BalanceTransactionCreate{
+		var errCreate error
+		bl, errCreate = blRepo.Create(c, repoargs.BalanceTransactionCreate{
 			UserID:    userID,
 			OrderID:   order.ID,
 			OrderCode: orderCode,
 			Direction: domain.DirectionCredit,
 			Amount:    amount,
 		})
-		if createErr != nil {
-			return createErr //nolint:wrapcheck
+		if errCreate != nil {
+			return errCreate //nolint:wrapcheck
 		}
 		return nil
 	}
 
 	var maxRetriesWithIsolation uint = 3
-	txErr := b.uow.DoWithIsolation(ctx, transFn, uow.IsolationSerializable, maxRetriesWithIsolation)
-	if txErr != nil {
-		return nil, fmt.Errorf("creating balance transaction: %w", txErr)
+	errTx := b.uow.DoWithIsolation(ctx, transFn, uow.IsolationSerializable, maxRetriesWithIsolation)
+	if errTx != nil {
+		return nil, fmt.Errorf("creating balance transaction: %w", errTx)
 	}
 
 	return bl, nil

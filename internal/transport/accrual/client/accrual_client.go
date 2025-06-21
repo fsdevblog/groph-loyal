@@ -17,8 +17,9 @@ const RouteOrderAccrual = "/api/orders/%s"
 
 // Константы минимального и максимально значения в заголовке Retry-After.
 const (
-	minRetryAfter = 1
-	maxRetryAfter = 120
+	minRetryAfter     = 1
+	defaultRetryAfter = 60
+	maxRetryAfter     = 120
 )
 
 type StatusType string
@@ -62,20 +63,20 @@ func (c HTTPClient) GetOrderAccrual(
 	url := c.baseURL + fmt.Sprintf(RouteOrderAccrual, orderCode)
 
 	// Создаем запрос.
-	req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if reqErr != nil {
-		return nil, fmt.Errorf("create request: %s", reqErr.Error())
+	req, errReq := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if errReq != nil {
+		return nil, fmt.Errorf("create request: %s", errReq.Error())
 	}
 
 	// Выполняем запрос.
-	resp, doErr := c.httpClient.Do(req)
-	if doErr != nil {
-		return nil, fmt.Errorf("do request: %s", doErr.Error())
+	resp, errResp := c.httpClient.Do(req)
+	if errResp != nil {
+		return nil, fmt.Errorf("do request: %s", errResp.Error())
 	}
 
 	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
+		if errClose := resp.Body.Close(); errClose != nil {
+			err = errors.Join(err, errClose)
 		}
 	}()
 
@@ -85,10 +86,10 @@ func (c HTTPClient) GetOrderAccrual(
 
 		retryAfterStr := resp.Header.Get("Retry-After")
 
-		retryAfter, parseErr := decimal.NewFromString(retryAfterStr)
-		if parseErr != nil || retryAfter.LessThan(minValue) || retryAfter.GreaterThan(maxValue) {
-			// в случае ошибки или неверных данных ставим 60 секунд
-			retryAfter = decimal.NewFromInt(60) //nolint:mnd
+		retryAfter, errParseRetry := decimal.NewFromString(retryAfterStr)
+		if errParseRetry != nil || retryAfter.LessThan(minValue) || retryAfter.GreaterThan(maxValue) {
+			// в случае ошибки или неверных данных ставим defaultRetryAfter.
+			retryAfter = decimal.NewFromInt(defaultRetryAfter)
 		}
 
 		ra := time.Duration(retryAfter.IntPart()) * time.Second
@@ -102,14 +103,14 @@ func (c HTTPClient) GetOrderAccrual(
 	}
 
 	// Парсим успешный ответ.
-	body, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		err = fmt.Errorf("read response: %s", readErr.Error())
+	body, errBody := io.ReadAll(resp.Body)
+	if errBody != nil {
+		err = fmt.Errorf("read response: %s", errBody.Error())
 		return nil, err
 	}
 
-	if jsonErr := json.Unmarshal(body, &response); jsonErr != nil {
-		err = fmt.Errorf("parse response: %s", jsonErr.Error())
+	if errUnmarshal := json.Unmarshal(body, &response); errUnmarshal != nil {
+		err = fmt.Errorf("parse response: %s", errUnmarshal.Error())
 		return nil, err
 	}
 
