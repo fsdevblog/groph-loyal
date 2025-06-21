@@ -1,4 +1,4 @@
-package service
+package svsorder
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type OrderService struct {
 	orderRepo OrderRepository // Репозиторий заказов
 }
 
-func NewOrderService(u uow.UOW) (*OrderService, error) {
+func New(u uow.UOW) (*OrderService, error) {
 	orderRepo, err := uow.GetRepositoryAs[OrderRepository](u, uow.RepositoryName(repoargs.OrderRepoName))
 	if err != nil {
 		return nil, err

@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	domain "github.com/fsdevblog/groph-loyal/internal/domain"
-	service "github.com/fsdevblog/groph-loyal/internal/service"
+	svsorder "github.com/fsdevblog/groph-loyal/internal/service/svsorder"
 	client "github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -91,7 +91,7 @@ func (mr *MockServicerMockRecorder) OrdersForAccrualMonitoring(ctx, limit interf
 }
 
 // UpdateAccrual mocks base method.
-func (m *MockServicer) UpdateAccrual(ctx context.Context, updates []service.UpdateAccrualArgs) error {
+func (m *MockServicer) UpdateAccrual(ctx context.Context, updates []svsorder.UpdateAccrualArgs) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateAccrual", ctx, updates)
 	ret0, _ := ret[0].(error)

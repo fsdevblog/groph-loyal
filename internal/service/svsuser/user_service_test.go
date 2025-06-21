@@ -1,9 +1,11 @@
-package service
+package svsuser
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser/mocks"
 
 	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
 
@@ -13,7 +15,6 @@ import (
 	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 )
@@ -46,7 +47,7 @@ func (s *UserServiceTestSuite) SetupTest() {
 		Return(s.mockUserRepo, nil).AnyTimes()
 
 	// Инициализация сервиса.
-	userService, servErr := NewUserService(s.mockUOW, s.jwtSecret)
+	userService, servErr := New(s.mockUOW, s.jwtSecret)
 
 	// заменяем хешер пароля на мок
 	userService.psswdHasher = s.mockPsswd

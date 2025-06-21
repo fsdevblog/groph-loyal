@@ -1,4 +1,4 @@
-package service
+package svsorder
 
 import (
 	"context"
@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsorder/mocks"
+
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
-	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
 
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
@@ -44,7 +45,7 @@ func (s *OrderServiceTestSuite) SetupTest() {
 		Return(s.mockOrderRepo, nil).AnyTimes()
 
 	// Инициализация сервиса.
-	orderService, servErr := NewOrderService(s.mockUOW)
+	orderService, servErr := New(s.mockUOW)
 	s.Require().NoError(servErr)
 	s.orderService = orderService
 }

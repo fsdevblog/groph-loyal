@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser"
+
 	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
 
 	"github.com/fsdevblog/groph-loyal/internal/config"
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/logger"
-	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/mocks"
 	"github.com/fsdevblog/groph-loyal/internal/transport/api/testutils"
 	"github.com/gin-gonic/gin"
@@ -60,11 +61,11 @@ func (s *AuthHandlerTestSuite) TestRegister() {
 	jwtTokenStr, errJWT := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
 	s.Require().NoError(errJWT)
 
-	argsOk := service.RegisterUserArgs{Username: "test", Password: "password"}
-	argsDup := service.RegisterUserArgs{Username: "duplicate", Password: "password"}
-	argsIncorrectUsername := service.RegisterUserArgs{Username: "", Password: "password"}
-	argsIncorrectPassword := service.RegisterUserArgs{Username: "test"}
-	argsTooLongPassword := service.RegisterUserArgs{
+	argsOk := svsuser.RegisterUserArgs{Username: "test", Password: "password"}
+	argsDup := svsuser.RegisterUserArgs{Username: "duplicate", Password: "password"}
+	argsIncorrectUsername := svsuser.RegisterUserArgs{Username: "", Password: "password"}
+	argsIncorrectPassword := svsuser.RegisterUserArgs{Username: "test"}
+	argsTooLongPassword := svsuser.RegisterUserArgs{
 		Username: "test",
 		Password: testutils.GenerateOverBytesUnderRunes(maxPasswordLength),
 	}
@@ -155,9 +156,9 @@ func (s *AuthHandlerTestSuite) TestLogin() {
 	jwtTokenStr, errJWT := tokens.GenerateUserJWT(1, time.Hour, s.jwtSecret)
 	s.Require().NoError(errJWT)
 
-	argsOk := service.LoginUserArgs{Username: "test", Password: "password"}
-	argsWrongUsername := service.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
-	argsWrongPass := service.LoginUserArgs{Username: "test", Password: "<wrong>"}
+	argsOk := svsuser.LoginUserArgs{Username: "test", Password: "password"}
+	argsWrongUsername := svsuser.LoginUserArgs{Username: "wrong", Password: "<PASSWORD>"}
+	argsWrongPass := svsuser.LoginUserArgs{Username: "test", Password: "<wrong>"}
 
 	s.mockUserService.EXPECT().
 		Login(gomock.Any(), argsOk).

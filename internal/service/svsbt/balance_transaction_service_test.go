@@ -1,13 +1,14 @@
-package service
+package svsbt
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsbt/mocks"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
-	"github.com/fsdevblog/groph-loyal/internal/service/mocks"
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 	uowmocks "github.com/fsdevblog/groph-loyal/pkg/uow/mocks"
 	"github.com/golang/mock/gomock"
@@ -42,7 +43,7 @@ func (s *BalanceTransactionServiceTestSuite) SetupTest() {
 		Return(s.mockBlRepo, nil).AnyTimes()
 
 	var err error
-	s.service, err = NewBalanceTransactionService(s.mockUOW)
+	s.service, err = New(s.mockUOW)
 	s.Require().NoError(err)
 }
 

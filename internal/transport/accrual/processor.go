@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsorder"
+
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
 	"github.com/shopspring/decimal"
 
@@ -106,14 +107,14 @@ func (p *Processor) process(ctx context.Context) error {
 		return nil
 	}
 
-	var updateArgs = make([]service.UpdateAccrualArgs, 0, len(results))
+	var updateArgs = make([]svsorder.UpdateAccrualArgs, 0, len(results))
 	for _, result := range results {
 		// согласно ТЗ статус REGISTERED не поддерживается системой лояльности, поэтому его мы пропускаем,
 		// и воркер его обработает при следующей попытке.
 		if result.Status == client.StatusRegistered {
 			continue
 		}
-		updateArgs = append(updateArgs, service.UpdateAccrualArgs{
+		updateArgs = append(updateArgs, svsorder.UpdateAccrualArgs{
 			Error:   result.Error,
 			OrderID: result.Order.ID,
 			Attempt: result.Attempt,

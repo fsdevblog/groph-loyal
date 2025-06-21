@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -46,7 +47,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	_, jwtToken, errCreate := h.userService.Register(ctx, service.RegisterUserArgs{
+	_, jwtToken, errCreate := h.userService.Register(ctx, svsuser.RegisterUserArgs{
 		Username: params.Username,
 		Password: params.Password,
 	})
@@ -91,7 +92,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, DefaultServiceTimeout)
 	defer cancel()
 
-	user, token, errLogin := h.userService.Login(ctx, service.LoginUserArgs{
+	user, token, errLogin := h.userService.Login(ctx, svsuser.LoginUserArgs{
 		Username: params.Username,
 		Password: params.Password,
 	})

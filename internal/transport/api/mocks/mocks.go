@@ -9,7 +9,8 @@ import (
 	reflect "reflect"
 
 	domain "github.com/fsdevblog/groph-loyal/internal/domain"
-	service "github.com/fsdevblog/groph-loyal/internal/service"
+	svsbt "github.com/fsdevblog/groph-loyal/internal/service/svsbt"
+	svsuser "github.com/fsdevblog/groph-loyal/internal/service/svsuser"
 	gomock "github.com/golang/mock/gomock"
 	decimal "github.com/shopspring/decimal"
 )
@@ -38,7 +39,7 @@ func (m *MockUserServicer) EXPECT() *MockUserServicerMockRecorder {
 }
 
 // Login mocks base method.
-func (m *MockUserServicer) Login(ctx context.Context, args service.LoginUserArgs) (*domain.User, string, error) {
+func (m *MockUserServicer) Login(ctx context.Context, args svsuser.LoginUserArgs) (*domain.User, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Login", ctx, args)
 	ret0, _ := ret[0].(*domain.User)
@@ -54,7 +55,7 @@ func (mr *MockUserServicerMockRecorder) Login(ctx, args interface{}) *gomock.Cal
 }
 
 // Register mocks base method.
-func (m *MockUserServicer) Register(ctx context.Context, args service.RegisterUserArgs) (*domain.User, string, error) {
+func (m *MockUserServicer) Register(ctx context.Context, args svsuser.RegisterUserArgs) (*domain.User, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", ctx, args)
 	ret0, _ := ret[0].(*domain.User)
@@ -161,10 +162,10 @@ func (mr *MockBalanceServicerMockRecorder) GetByDirection(ctx, userID, direction
 }
 
 // GetUserBalance mocks base method.
-func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*service.UserBalance, error) {
+func (m *MockBalanceServicer) GetUserBalance(ctx context.Context, userID int64) (*svsbt.UserBalance, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
-	ret0, _ := ret[0].(*service.UserBalance)
+	ret0, _ := ret[0].(*svsbt.UserBalance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

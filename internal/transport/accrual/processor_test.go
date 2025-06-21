@@ -3,7 +3,8 @@ package accrual
 import (
 	"context"
 
-	"github.com/fsdevblog/groph-loyal/internal/service"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsorder"
+
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
 
 	"github.com/shopspring/decimal"
@@ -86,7 +87,7 @@ func (s *ProcessorTestSuite) TestProcess_ErrorAccrualReq() {
 	// Настраиваем мок-сервис для обновления статуса заказа.
 	s.mockService.EXPECT().
 		UpdateAccrual(gomock.Any(), gomock.Any()).
-		Do(func(_ context.Context, updates []service.UpdateAccrualArgs) {
+		Do(func(_ context.Context, updates []svsorder.UpdateAccrualArgs) {
 			// Убеждаемся что ошибки были отправлены в сервис
 			s.Require().Len(updates, 2)
 			s.Error(updates[0].Error) //nolint:testifylint
@@ -182,7 +183,7 @@ func (s *ProcessorTestSuite) TestProcess_Success() {
 	// Ожидаем вызов обновления с правильными данными.
 	s.mockService.EXPECT().
 		UpdateAccrual(gomock.Any(), gomock.Any()).
-		Do(func(_ context.Context, updates []service.UpdateAccrualArgs) {
+		Do(func(_ context.Context, updates []svsorder.UpdateAccrualArgs) {
 			s.Require().Len(updates, 2)
 
 			// Проверяем обновления.

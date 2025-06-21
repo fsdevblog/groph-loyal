@@ -1,13 +1,13 @@
-package service
+package svsuser
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser/psswd"
 
-	"github.com/fsdevblog/groph-loyal/internal/service/psswd"
+	"github.com/fsdevblog/groph-loyal/internal/service/tokens"
 
 	"github.com/fsdevblog/groph-loyal/internal/repository/repoargs"
 
@@ -25,7 +25,7 @@ type UserService struct {
 	jwtTokenSecret []byte
 }
 
-func NewUserService(u uow.UOW, jwtTokenSecret []byte) (*UserService, error) {
+func New(u uow.UOW, jwtTokenSecret []byte) (*UserService, error) {
 	userRepo, err := uow.GetRepositoryAs[UserRepository](u, uow.RepositoryName(repoargs.UserRepoName))
 	if err != nil {
 		return nil, err

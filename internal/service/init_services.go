@@ -3,13 +3,17 @@ package service
 import (
 	"fmt"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsbt"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsorder"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser"
+
 	"github.com/fsdevblog/groph-loyal/pkg/uow"
 )
 
 type AppServices struct {
-	UserService  *UserService
-	OrderService *OrderService
-	BlService    *BalanceTransactionService
+	UserService  *svsuser.UserService
+	OrderService *svsorder.OrderService
+	BlService    *svsbt.BalanceTransactionService
 }
 
 // NewAppServices инициализирует и возвращает структуру AppServices, содержащую все сервисы приложения.
@@ -19,18 +23,18 @@ type AppServices struct {
 // Если при создании какого-либо из сервисов возникает ошибка, метод немедленно прерывает выполнение
 // и возвращает эту ошибку.
 func NewAppServices(unitOfWork uow.UOW, jwtSecret []byte) (*AppServices, error) {
-	userService, errUserService := NewUserService(unitOfWork, jwtSecret)
+	userService, errUserService := svsuser.New(unitOfWork, jwtSecret)
 
 	if errUserService != nil {
 		return nil, fmt.Errorf("service factory: %s", errUserService.Error())
 	}
 
-	orderService, errOrderService := NewOrderService(unitOfWork)
+	orderService, errOrderService := svsorder.New(unitOfWork)
 	if errOrderService != nil {
 		return nil, fmt.Errorf("service factory: %s", errOrderService.Error())
 	}
 
-	blService, errBlService := NewBalanceTransactionService(unitOfWork)
+	blService, errBlService := svsbt.New(unitOfWork)
 	if errBlService != nil {
 		return nil, fmt.Errorf("service factory: %s", errBlService.Error())
 	}

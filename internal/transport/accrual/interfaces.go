@@ -5,8 +5,9 @@ package accrual
 import (
 	"context"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsorder"
+
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/service"
 	"github.com/fsdevblog/groph-loyal/internal/transport/accrual/client"
 )
 
@@ -16,5 +17,5 @@ type Client interface {
 
 type Servicer interface {
 	OrdersForAccrualMonitoring(ctx context.Context, limit uint) ([]domain.Order, error)
-	UpdateAccrual(ctx context.Context, updates []service.UpdateAccrualArgs) error
+	UpdateAccrual(ctx context.Context, updates []svsorder.UpdateAccrualArgs) error
 }

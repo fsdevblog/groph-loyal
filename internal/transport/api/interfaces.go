@@ -5,16 +5,18 @@ package api
 import (
 	"context"
 
+	"github.com/fsdevblog/groph-loyal/internal/service/svsbt"
+	"github.com/fsdevblog/groph-loyal/internal/service/svsuser"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/fsdevblog/groph-loyal/internal/domain"
-	"github.com/fsdevblog/groph-loyal/internal/service"
 )
 
 // UserServicer интерфейс исключительно для моков.
 type UserServicer interface {
-	Register(ctx context.Context, args service.RegisterUserArgs) (*domain.User, string, error)
-	Login(ctx context.Context, args service.LoginUserArgs) (*domain.User, string, error)
+	Register(ctx context.Context, args svsuser.RegisterUserArgs) (*domain.User, string, error)
+	Login(ctx context.Context, args svsuser.LoginUserArgs) (*domain.User, string, error)
 }
 
 type OrderServicer interface {
@@ -23,7 +25,7 @@ type OrderServicer interface {
 }
 
 type BalanceServicer interface {
-	GetUserBalance(ctx context.Context, userID int64) (*service.UserBalance, error)
+	GetUserBalance(ctx context.Context, userID int64) (*svsbt.UserBalance, error)
 	Withdraw(
 		ctx context.Context,
 		userID int64,

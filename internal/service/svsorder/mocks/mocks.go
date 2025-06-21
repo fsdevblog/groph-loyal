@@ -13,58 +13,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockPasswordHasher is a mock of PasswordHasher interface.
-type MockPasswordHasher struct {
-	ctrl     *gomock.Controller
-	recorder *MockPasswordHasherMockRecorder
-}
-
-// MockPasswordHasherMockRecorder is the mock recorder for MockPasswordHasher.
-type MockPasswordHasherMockRecorder struct {
-	mock *MockPasswordHasher
-}
-
-// NewMockPasswordHasher creates a new mock instance.
-func NewMockPasswordHasher(ctrl *gomock.Controller) *MockPasswordHasher {
-	mock := &MockPasswordHasher{ctrl: ctrl}
-	mock.recorder = &MockPasswordHasherMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPasswordHasher) EXPECT() *MockPasswordHasherMockRecorder {
-	return m.recorder
-}
-
-// ComparePassword mocks base method.
-func (m *MockPasswordHasher) ComparePassword(password, hashedPassword string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ComparePassword", password, hashedPassword)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// ComparePassword indicates an expected call of ComparePassword.
-func (mr *MockPasswordHasherMockRecorder) ComparePassword(password, hashedPassword interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ComparePassword", reflect.TypeOf((*MockPasswordHasher)(nil).ComparePassword), password, hashedPassword)
-}
-
-// HashPassword mocks base method.
-func (m *MockPasswordHasher) HashPassword(password string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HashPassword", password)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HashPassword indicates an expected call of HashPassword.
-func (mr *MockPasswordHasherMockRecorder) HashPassword(password interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashPassword", reflect.TypeOf((*MockPasswordHasher)(nil).HashPassword), password)
-}
-
 // MockOrderRepository is a mock of OrderRepository interface.
 type MockOrderRepository struct {
 	ctrl     *gomock.Controller
@@ -172,59 +120,6 @@ func (mr *MockOrderRepositoryMockRecorder) IncrementErrAttempts(ctx, data, fn in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncrementErrAttempts", reflect.TypeOf((*MockOrderRepository)(nil).IncrementErrAttempts), ctx, data, fn)
 }
 
-// MockUserRepository is a mock of UserRepository interface.
-type MockUserRepository struct {
-	ctrl     *gomock.Controller
-	recorder *MockUserRepositoryMockRecorder
-}
-
-// MockUserRepositoryMockRecorder is the mock recorder for MockUserRepository.
-type MockUserRepositoryMockRecorder struct {
-	mock *MockUserRepository
-}
-
-// NewMockUserRepository creates a new mock instance.
-func NewMockUserRepository(ctrl *gomock.Controller) *MockUserRepository {
-	mock := &MockUserRepository{ctrl: ctrl}
-	mock.recorder = &MockUserRepositoryMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
-	return m.recorder
-}
-
-// CreateUser mocks base method.
-func (m *MockUserRepository) CreateUser(ctx context.Context, user repoargs.CreateUser) (*domain.User, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, user)
-	ret0, _ := ret[0].(*domain.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateUser indicates an expected call of CreateUser.
-func (mr *MockUserRepositoryMockRecorder) CreateUser(ctx, user interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserRepository)(nil).CreateUser), ctx, user)
-}
-
-// FindUserByUsername mocks base method.
-func (m *MockUserRepository) FindUserByUsername(ctx context.Context, username string) (*domain.User, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindUserByUsername", ctx, username)
-	ret0, _ := ret[0].(*domain.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindUserByUsername indicates an expected call of FindUserByUsername.
-func (mr *MockUserRepositoryMockRecorder) FindUserByUsername(ctx, username interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindUserByUsername", reflect.TypeOf((*MockUserRepository)(nil).FindUserByUsername), ctx, username)
-}
-
 // MockBalanceTransactionRepository is a mock of BalanceTransactionRepository interface.
 type MockBalanceTransactionRepository struct {
 	ctrl     *gomock.Controller
@@ -258,49 +153,4 @@ func (m *MockBalanceTransactionRepository) BatchCreate(ctx context.Context, tran
 func (mr *MockBalanceTransactionRepositoryMockRecorder) BatchCreate(ctx, transactions, fn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchCreate", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).BatchCreate), ctx, transactions, fn)
-}
-
-// Create mocks base method.
-func (m *MockBalanceTransactionRepository) Create(ctx context.Context, transaction repoargs.BalanceTransactionCreate) (*domain.BalanceTransaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, transaction)
-	ret0, _ := ret[0].(*domain.BalanceTransaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockBalanceTransactionRepositoryMockRecorder) Create(ctx, transaction interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).Create), ctx, transaction)
-}
-
-// GetByDirection mocks base method.
-func (m *MockBalanceTransactionRepository) GetByDirection(ctx context.Context, userID int64, direction domain.DirectionType) ([]domain.BalanceTransaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByDirection", ctx, userID, direction)
-	ret0, _ := ret[0].([]domain.BalanceTransaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByDirection indicates an expected call of GetByDirection.
-func (mr *MockBalanceTransactionRepositoryMockRecorder) GetByDirection(ctx, userID, direction interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByDirection", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).GetByDirection), ctx, userID, direction)
-}
-
-// GetUserBalance mocks base method.
-func (m *MockBalanceTransactionRepository) GetUserBalance(ctx context.Context, userID int64) (*repoargs.BalanceAggregation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserBalance", ctx, userID)
-	ret0, _ := ret[0].(*repoargs.BalanceAggregation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetUserBalance indicates an expected call of GetUserBalance.
-func (mr *MockBalanceTransactionRepositoryMockRecorder) GetUserBalance(ctx, userID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserBalance", reflect.TypeOf((*MockBalanceTransactionRepository)(nil).GetUserBalance), ctx, userID)
 }

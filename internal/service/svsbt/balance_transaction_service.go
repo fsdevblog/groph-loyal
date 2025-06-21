@@ -1,4 +1,4 @@
-package service
+package svsbt
 
 import (
 	"context"
@@ -18,8 +18,8 @@ type BalanceTransactionService struct {
 	blRepo BalanceTransactionRepository
 }
 
-// NewBalanceTransactionService создает новый сервис для транзакций баланса.
-func NewBalanceTransactionService(u uow.UOW) (*BalanceTransactionService, error) {
+// New создает новый сервис для транзакций баланса.
+func New(u uow.UOW) (*BalanceTransactionService, error) {
 	rName := uow.RepositoryName(repoargs.BalanceTransactionRepoName)
 	blRepo, errBlRepo := uow.GetRepositoryAs[BalanceTransactionRepository](u, rName)
 	if errBlRepo != nil {
