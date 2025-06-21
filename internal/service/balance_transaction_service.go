@@ -75,7 +75,7 @@ func (b *BalanceTransactionService) Withdraw(
 	amount decimal.Decimal,
 ) (*domain.BalanceTransaction, error) {
 	var bl *domain.BalanceTransaction
-	txErr := b.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
+	transFn := func(c context.Context, tx uow.TX) error {
 		orderRepo, orderRepoErr := uow.GetAs[OrderRepository](tx, uow.RepositoryName(repoargs.OrderRepoName))
 		if orderRepoErr != nil {
 			return orderRepoErr //nolint:wrapcheck
@@ -116,8 +116,10 @@ func (b *BalanceTransactionService) Withdraw(
 			return createErr //nolint:wrapcheck
 		}
 		return nil
-	})
+	}
 
+	var maxRetriesWithIsolation uint = 3
+	txErr := b.uow.DoWithIsolation(ctx, transFn, uow.IsolationSerializable, maxRetriesWithIsolation)
 	if txErr != nil {
 		return nil, fmt.Errorf("creating balance transaction: %w", txErr)
 	}

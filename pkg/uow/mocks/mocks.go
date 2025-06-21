@@ -172,17 +172,36 @@ func (m *MockUOW) EXPECT() *MockUOWMockRecorder {
 }
 
 // Do mocks base method.
-func (m *MockUOW) Do(ctx context.Context, fn func(context.Context, uow.TX) error) error {
+func (m *MockUOW) Do(ctx context.Context, fn func(context.Context, uow.TX) error, opts ...func(*uow.TransactionOptions)) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Do", ctx, fn)
+	varargs := []interface{}{ctx, fn}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Do", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Do indicates an expected call of Do.
-func (mr *MockUOWMockRecorder) Do(ctx, fn interface{}) *gomock.Call {
+func (mr *MockUOWMockRecorder) Do(ctx, fn interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockUOW)(nil).Do), ctx, fn)
+	varargs := append([]interface{}{ctx, fn}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockUOW)(nil).Do), varargs...)
+}
+
+// DoWithIsolation mocks base method.
+func (m *MockUOW) DoWithIsolation(ctx context.Context, fn func(context.Context, uow.TX) error, isoLevel uow.IsolationLevel, maxRetries uint) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DoWithIsolation", ctx, fn, isoLevel, maxRetries)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DoWithIsolation indicates an expected call of DoWithIsolation.
+func (mr *MockUOWMockRecorder) DoWithIsolation(ctx, fn, isoLevel, maxRetries interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoWithIsolation", reflect.TypeOf((*MockUOW)(nil).DoWithIsolation), ctx, fn, isoLevel, maxRetries)
 }
 
 // GetRepository mocks base method.

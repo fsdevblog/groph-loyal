@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -45,9 +47,70 @@ func (u *UnitOfWork) Register(name RepositoryName, factory RepositoryFactory) er
 	return nil
 }
 
+type IsolationLevel string
+
+const (
+	IsolationDefault        IsolationLevel = "read_committed"
+	IsolationRepeatableRead IsolationLevel = "repeatable_read"
+	IsolationSerializable   IsolationLevel = "serializable"
+)
+
+// TransactionOptions структура настроек для обертки транзакции.
+type TransactionOptions struct {
+	IsolationLevel IsolationLevel // Уровень изоляции транзакции.
+}
+
+func WithIsolationLevel(isoLevel IsolationLevel) func(*TransactionOptions) {
+	return func(opts *TransactionOptions) {
+		opts.IsolationLevel = isoLevel
+	}
+}
+
+const pgIsolationCode = "40001"
+
+// DoWithIsolation выполняет транзакцию с заданным уровнем изоляции и автоматическими повторами.
+// Принимает функцию fn, которая будет выполнена в рамках транзакции с уровнем изоляции isoLevel.
+// При возникновении ошибок изоляции (код Postgres 40001) автоматически повторяет транзакцию
+// до maxRetries раз. При превышении лимита повторов возвращает ErrIsolationRetryLimitReached.
+// При возникновении других ошибок немедленно прерывает выполнение и возвращает ошибку.
+func (u *UnitOfWork) DoWithIsolation(
+	ctx context.Context,
+	fn func(context.Context, TX) error,
+	isoLevel IsolationLevel,
+	maxRetries uint,
+) error {
+	for range maxRetries {
+		err := u.Do(ctx, fn, WithIsolationLevel(isoLevel))
+		if err == nil {
+			return nil
+		}
+		var errPg *pgconn.PgError
+		if errors.As(err, &errPg) && errPg.Code == pgIsolationCode {
+			continue
+		}
+		return err
+	}
+	return ErrIsolationRetryLimitReached
+}
+
 // Do выполняет функцию fn внутри транзакции.
-func (u *UnitOfWork) Do(ctx context.Context, fn func(context.Context, TX) error) (err error) {
-	tx, txErr := u.conn.BeginTx(ctx, pgx.TxOptions{})
+func (u *UnitOfWork) Do(
+	ctx context.Context,
+	fn func(context.Context, TX) error,
+	opts ...func(options *TransactionOptions),
+) (err error) {
+	options := TransactionOptions{
+		IsolationLevel: IsolationDefault,
+	}
+	if len(opts) > 0 {
+		for _, opt := range opts {
+			opt(&options)
+		}
+	}
+
+	tx, txErr := u.conn.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: convertIsolationLevelType(options.IsolationLevel),
+	})
 	if txErr != nil {
 		return txErr //nolint:wrapcheck
 	}
@@ -62,7 +125,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(context.Context, TX) error)
 		return transErr
 	}
 	err = tx.Commit(ctx)
-	return
+	return err //nolint:wrapcheck
 }
 
 // GetRepository возвращает репозиторий или ошибку ErrRepositoryNotRegistered.
@@ -88,4 +151,19 @@ func GetRepositoryAs[T any](u UOW, name RepositoryName) (T, error) {
 	}
 
 	return r, nil
+}
+
+// convertIsolationLevelType конвертирует типы для изоляции транзакции в pgx.TxIsoLevel.
+// Возвращает pgx.ReadCommitted при некорректном IsolationLevel.
+func convertIsolationLevelType(isolationLevel IsolationLevel) pgx.TxIsoLevel {
+	switch isolationLevel {
+	case IsolationRepeatableRead:
+		return pgx.RepeatableRead
+	case IsolationSerializable:
+		return pgx.Serializable
+	case IsolationDefault:
+		return pgx.ReadCommitted
+	default:
+		return pgx.ReadCommitted
+	}
 }

@@ -170,8 +170,12 @@ func (s *UserServiceTestSuite) TestRegister() {
 
 	// Мок uow.
 	s.mockUOW.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, fn func(context.Context, uow.TX) error) error {
+		Do(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(
+			ctx context.Context,
+			fn func(context.Context, uow.TX) error,
+			_ ...func(*uow.TransactionOptions),
+		) error {
 			return fn(ctx, s.mockTX)
 		}).AnyTimes()
 

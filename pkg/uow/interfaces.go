@@ -21,6 +21,10 @@ type DBTX interface {
 
 type UOW interface {
 	Register(name RepositoryName, factory RepositoryFactory) error
-	Do(ctx context.Context, fn func(ctx context.Context, tx TX) error) error
+	Do(ctx context.Context, fn func(ctx context.Context, tx TX) error, opts ...func(options *TransactionOptions)) error
+	DoWithIsolation(ctx context.Context, fn func(
+		ctx context.Context,
+		tx TX,
+	) error, isoLevel IsolationLevel, maxRetries uint) error
 	GetRepository(name RepositoryName) (Repository, error)
 }

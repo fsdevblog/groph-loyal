@@ -134,8 +134,8 @@ func (s *OrderServiceTestSuite) TestUpdateAccrual() {
 
 	// Настраиваем мок для выполнения транзакции
 	s.mockUOW.EXPECT().
-		Do(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, fn func(context.Context, uow.TX) error) error {
+		DoWithIsolation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, fn func(context.Context, uow.TX) error, _ uow.IsolationLevel, _ uint) error {
 			return fn(ctx, s.mockTX)
 		})
 

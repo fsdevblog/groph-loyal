@@ -130,8 +130,8 @@ func (s *BalanceTransactionServiceTestSuite) TestWithdraw_EnoughBalance() {
 		}).Times(1)
 
 	// настраиваем мок UOW обертку.
-	s.mockUOW.EXPECT().Do(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, fn func(context.Context, uow.TX) error) error {
+	s.mockUOW.EXPECT().DoWithIsolation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, fn func(context.Context, uow.TX) error, _ uow.IsolationLevel, _ uint) error {
 			return fn(s.T().Context(), s.mockTX)
 		},
 	).Times(2)

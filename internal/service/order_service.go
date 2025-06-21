@@ -72,21 +72,20 @@ func (o *OrderService) UpdateAccrual(
 	ctx context.Context,
 	updates []UpdateAccrualArgs,
 ) error {
-	txErr := o.uow.Do(ctx, func(c context.Context, tx uow.TX) error {
-		successData, failureIDs := o.splitSuccessFailureUpdates(updates)
-
-		// тут очень хотелось запустить апдейт параллельно через errgroup, но
-		// к сожалению tx не потокобезопасен.. Облом..
+	transFn := func(c context.Context, tx uow.TX) error {
+		successData, failData := o.splitSuccessFailureUpdates(updates)
 		if err := o.updateSuccessOrdersWithAccrual(c, tx, successData); err != nil {
 			return err //nolint:wrapcheck
 		}
-
-		if err := o.incrementErrAttempts(c, tx, failureIDs); err != nil {
+		if err := o.incrementErrAttempts(c, tx, failData); err != nil {
 			return err //nolint:wrapcheck
 		}
 
 		return nil
-	})
+	}
+
+	var maxRetriesWithIsolation uint = 3
+	txErr := o.uow.DoWithIsolation(ctx, transFn, uow.IsolationRepeatableRead, maxRetriesWithIsolation)
 
 	if txErr != nil {
 		return fmt.Errorf("updating orders with accrual: %w", txErr)

@@ -12,6 +12,7 @@ import (
 
 const (
 	uniqueViolationCode = "23505"
+	isolationCode       = "40001"
 )
 
 // convertErr преобразует ошибку к стандартному виду для слоя репозитория.
@@ -39,12 +40,18 @@ func convertErr(err error, format string, formatArgs ...any) error {
 	if errors.As(err, &pgErr) {
 		if isUniqueViolationErr(pgErr) {
 			errType = domain.ErrDuplicateKey
+		} else if isIsolationErr(pgErr) {
+			errType = domain.ErrIsolation
 		}
 	}
 
-	return fmt.Errorf("[repository/%s] %w: %s", msg, errType, err.Error())
+	return fmt.Errorf("[repository/%s] %w: %w", msg, errType, err)
 }
 
 func isUniqueViolationErr(err *pgconn.PgError) bool {
 	return err.Code == uniqueViolationCode
+}
+
+func isIsolationErr(err *pgconn.PgError) bool {
+	return err.Code == isolationCode
 }
