@@ -1,0 +1,24 @@
+services:
+  sqlc:
+    image: sqlc/sqlc
+    container_name: gophermart-sqlc
+    volumes:
+      - .:/src
+    working_dir: /src
+    command:
+      - "generate"
+  postgres:
+    image: postgres:17
+    container_name: gophermart-pg
+    env_file:
+      - ./.env
+    ports:
+      - "5436:${POSTGRES_PORT}"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
